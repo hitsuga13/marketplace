@@ -24,7 +24,7 @@
           icon="search"
           label="Search"
           class="gt-xs"
-          @click="searchDialog = true"
+          @click="searchModal = true"
         />
         <q-btn
           flat
@@ -34,7 +34,7 @@
           icon="search"
           aria-label="Open search"
           class="lt-sm"
-          @click="searchDialog = true"
+          @click="searchModal = true"
         />
       </q-toolbar>
 
@@ -47,9 +47,13 @@
         mobile-arrows
       >
         <q-route-tab to="/main" icon="home" label="Menu" />
-        <q-route-tab to="/page1" icon="design_services" label="Services" />
-        <q-route-tab to="/page2" icon="restaurant" label="Food & Beverages" />
-        <q-route-tab to="/page3" icon="checkroom" label="Thrift" />
+
+        <q-route-tab
+          :to="{ path: '/main', query: { category: 'All', doScroll: 'true' } }"
+          icon="dashboard"
+          label="Buyer Dashboard"
+        />
+
         <q-route-tab to="/page4" icon="account_circle" label="Login/Register" />
       </q-tabs>
     </q-header>
@@ -64,14 +68,12 @@
           <div class="text-h6">Contact Us</div>
           <div class="text-white-8">+60 12-345 6789</div>
         </div>
-
         <div>
           <div class="text-h6">Location</div>
           <div class="text-white-8">
             Universiti Pertahanan Nasional Malaysia, Kem Perdana Sungai Besi, 57000 Kuala Lumpur
           </div>
         </div>
-
         <div>
           <div class="text-h6">Operating Hours</div>
           <div class="text-white-8">Mon - Fri: 9:00 AM - 6:00 PM</div>
@@ -91,113 +93,157 @@
       ></iframe>
     </q-footer>
 
-    <q-dialog v-model="searchDialog">
-      <q-card class="search-card">
-        <q-card-section class="row items-center q-pb-none">
-          <div>
-            <div class="text-h6">Browse Marketplace</div>
-            <div class="text-caption text-grey-7">Try food, printing, hoodie, runner, jersey</div>
-          </div>
-          <q-space />
-          <q-btn v-close-popup flat round dense icon="close" />
-        </q-card-section>
-
-        <q-card-section>
+    <q-dialog v-model="searchModal" position="top" @hide="searchQuery = ''">
+      <q-card
+        class="bg-grey-10 text-white q-mt-xl"
+        style="
+          width: 500px;
+          max-width: 90vw;
+          border-radius: 12px;
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+        "
+      >
+        <q-card-section class="q-pb-none q-pt-sm">
           <q-input
-            v-model="search"
-            label="Search products, services, vendors..."
-            outlined
-            dense
+            dark
+            borderless
+            v-model="searchQuery"
+            placeholder="Search for food, services..."
             autofocus
-            clearable
-            @keyup.enter="doSearch"
+            class="text-h6"
           >
-            <template #prepend>
-              <q-icon name="search" />
+            <template v-slot:prepend>
+              <q-icon name="search" color="grey-5" />
+            </template>
+            <template v-slot:append>
+              <q-icon
+                name="close"
+                class="cursor-pointer text-grey-5"
+                @click="searchModal = false"
+              />
             </template>
           </q-input>
         </q-card-section>
 
-        <q-card-section class="q-pt-none">
-          <div class="row q-col-gutter-sm">
-            <div v-for="item in quickSearches" :key="item.label" class="col-6">
-              <q-btn
-                align="left"
-                class="full-width quick-search-btn"
-                unelevated
-                no-caps
-                :icon="item.icon"
-                :label="item.label"
-                @click="goTo(item.to)"
-              />
-            </div>
+        <q-card-section v-if="searchQuery" class="q-pt-sm">
+          <div
+            class="text-subtitle2 text-grey-5 q-mb-sm text-weight-bold"
+            style="letter-spacing: 0.5px"
+          >
+            Top Results
+          </div>
+
+          <q-list dark>
+            <q-item
+              v-for="item in topResults"
+              :key="item.name"
+              clickable
+              v-ripple
+              @click="quickOpenProduct(item)"
+              class="q-px-none q-py-sm rounded-borders"
+            >
+              <q-item-section avatar>
+                <q-avatar square style="border-radius: 4px; width: 48px; height: 48px">
+                  <img :src="item.image" :alt="item.name" style="object-fit: cover" />
+                </q-avatar>
+              </q-item-section>
+
+              <q-item-section>
+                <q-item-label class="text-weight-bold text-white text-body1">{{
+                  item.name
+                }}</q-item-label>
+                <q-item-label caption class="text-grey-5">
+                  {{ item.category }} &bull; {{ item.vendor || 'Campus Vendor' }}
+                </q-item-label>
+              </q-item-section>
+
+              <q-item-section side>
+                <q-item-label class="text-grey-3 text-body2">
+                  {{ getPriceDisplay(item) }}
+                </q-item-label>
+              </q-item-section>
+            </q-item>
+          </q-list>
+
+          <div v-if="topResults.length === 0" class="text-center text-grey-5 q-py-md">
+            No items found for "{{ searchQuery }}"
+          </div>
+
+          <div v-else class="text-center q-mt-md q-mb-sm">
+            <q-btn
+              flat
+              color="primary"
+              no-caps
+              @click="seeAllResults"
+              :label="`See all results for &quot;${searchQuery}&quot;`"
+            />
           </div>
         </q-card-section>
-
-        <q-card-actions align="right" class="q-px-md q-pb-md">
-          <q-btn flat label="Cancel" color="primary" v-close-popup />
-          <q-btn
-            unelevated
-            color="primary"
-            icon="travel_explore"
-            label="Search"
-            @click="doSearch"
-          />
-        </q-card-actions>
       </q-card>
     </q-dialog>
   </q-layout>
 </template>
 
 <script>
-export default {
+import { defineComponent, ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
+import { allProducts } from '../data/products.js'
+
+export default defineComponent({
   name: 'MainLayout',
-  data() {
+  setup() {
+    const router = useRouter()
+
+    const searchModal = ref(false)
+    const searchQuery = ref('')
+
+    const topResults = computed(() => {
+      if (!searchQuery.value) return []
+
+      const query = searchQuery.value.toLowerCase()
+      return allProducts
+        .filter(
+          (product) =>
+            product.name.toLowerCase().includes(query) ||
+            (product.category && product.category.toLowerCase().includes(query)) ||
+            (product.vendor && product.vendor.toLowerCase().includes(query)),
+        )
+        .slice(0, 4)
+    })
+
+    const getPriceDisplay = (item) => {
+      if (item.variations && item.variations.length > 0) return 'Varies'
+      if (item.price) return `RM ${item.price.toFixed(2)}`
+      return ''
+    }
+
+    // FIX: Keep search bar open, but add a timestamp to force Vue Router to trigger
+    const quickOpenProduct = (item) => {
+      router.push({
+        path: '/main', // (or '/' if that is what you were using)
+        query: { openProduct: item.name, t: Date.now() }, // <--- ADD Date.now()
+      })
+    }
+
+    // FIX: Safely pass the search term to the main page
+    const seeAllResults = () => {
+      if (!searchQuery.value) return
+
+      const text = searchQuery.value // Save the word before closing
+      searchModal.value = false // Close the modal
+
+      // Send the user to the main page with the 'search' query in the URL
+      router.push({ path: '/main', query: { search: text } })
+    }
+
     return {
-      searchDialog: false,
-      search: '',
-      quickSearches: [
-        { label: 'Campus food', icon: 'restaurant', to: '/page2' },
-        { label: 'Printing', icon: 'print', to: '/page1' },
-        { label: 'Runner', icon: 'directions_run', to: '/page1' },
-        { label: 'Thrift finds', icon: 'checkroom', to: '/page3' },
-      ],
+      searchModal,
+      searchQuery,
+      topResults,
+      getPriceDisplay,
+      quickOpenProduct,
+      seeAllResults,
     }
   },
-  methods: {
-    doSearch() {
-      const q = (this.search || '').trim()
-      this.searchDialog = false
-
-      if (!q) return
-
-      const lower = q.toLowerCase()
-      const target =
-        lower.includes('food') ||
-        lower.includes('beverage') ||
-        lower.includes('nasi') ||
-        lower.includes('takoyaki') ||
-        lower.includes('ramen')
-          ? '/page2'
-          : lower.includes('print') ||
-              lower.includes('service') ||
-              lower.includes('runner') ||
-              lower.includes('laminate')
-            ? '/page1'
-            : lower.includes('thrift') ||
-                lower.includes('hoodie') ||
-                lower.includes('shirt') ||
-                lower.includes('jersey') ||
-                lower.includes('nike')
-              ? '/page3'
-              : '/'
-
-      this.$router.push({ path: target, query: { q } })
-    },
-    goTo(path) {
-      this.searchDialog = false
-      this.$router.push(path)
-    },
-  },
-}
+})
 </script>
