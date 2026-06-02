@@ -3,9 +3,9 @@
     <q-header elevated class="market-header text-white">
       <q-toolbar class="q-px-md">
         <q-toolbar-title class="row items-center no-wrap">
-          <q-avatar class="brand-mark q-mr-sm" size="38px">
-            <q-icon name="storefront" size="22px" />
-          </q-avatar>
+          <div class="brand-logo">
+            <img src="/icons/upnm-logo.png" alt="UPNM logo" />
+          </div>
           <div>
             <div class="text-weight-bold">UPNM Marketplace</div>
             <div class="text-caption text-white-8 gt-xs">
@@ -50,7 +50,6 @@
         <q-route-tab to="/page1" icon="design_services" label="Services" />
         <q-route-tab to="/page2" icon="restaurant" label="Food & Beverages" />
         <q-route-tab to="/page3" icon="checkroom" label="Thrift" />
-        <q-route-tab to="/portal" icon="dashboard" label="Portal" />
         <q-route-tab to="/page4" icon="account_circle" label="Login/Register" />
       </q-tabs>
     </q-header>

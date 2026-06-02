@@ -27,9 +27,6 @@
           <div class="col-12 col-sm-auto">
             <q-btn outline color="white" icon="storefront" label="Browse All" to="/main" />
           </div>
-          <div class="col-12 col-sm-auto">
-            <q-btn outline color="white" icon="dashboard" label="Open Portal" to="/portal" />
-          </div>
         </div>
       </div>
     </section>
