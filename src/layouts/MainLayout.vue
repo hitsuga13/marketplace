@@ -93,87 +93,120 @@
       ></iframe>
     </q-footer>
 
-    <q-dialog v-model="searchModal" position="top" @hide="searchQuery = ''">
-      <q-card
-        class="bg-grey-10 text-white q-mt-xl"
-        style="
-          width: 500px;
-          max-width: 90vw;
-          border-radius: 12px;
-          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-        "
-      >
-        <q-card-section class="q-pb-none q-pt-sm">
+    <q-dialog v-model="searchModal" position="top" no-route-dismiss @hide="searchQuery = ''">
+      <q-card class="search-panel q-mt-xl">
+        <q-card-section class="search-panel__header">
+          <div>
+            <div class="search-panel__eyebrow">Marketplace Search</div>
+            <div class="search-panel__title">Find campus items fast</div>
+          </div>
+          <q-btn
+            flat
+            round
+            dense
+            icon="close"
+            color="primary"
+            aria-label="Close search"
+            @click="searchModal = false"
+          />
+        </q-card-section>
+
+        <q-card-section class="q-pt-none">
           <q-input
-            dark
-            borderless
+            outlined
             v-model="searchQuery"
             placeholder="Search for food, services..."
             autofocus
-            class="text-h6"
+            class="search-input"
+            bg-color="white"
+            color="primary"
           >
             <template v-slot:prepend>
-              <q-icon name="search" color="grey-5" />
+              <q-icon name="search" color="primary" />
             </template>
             <template v-slot:append>
-              <q-icon
-                name="close"
-                class="cursor-pointer text-grey-5"
-                @click="searchModal = false"
+              <q-btn
+                v-if="searchQuery"
+                flat
+                round
+                dense
+                icon="backspace"
+                color="grey-6"
+                aria-label="Clear search"
+                @click="searchQuery = ''"
+              />
+              <q-btn
+                v-else
+                unelevated
+                round
+                dense
+                icon="keyboard_return"
+                color="secondary"
+                text-color="dark"
+                aria-label="Submit search"
+                @click="seeAllResults"
               />
             </template>
           </q-input>
         </q-card-section>
 
-        <q-card-section v-if="searchQuery" class="q-pt-sm">
-          <div
-            class="text-subtitle2 text-grey-5 q-mb-sm text-weight-bold"
-            style="letter-spacing: 0.5px"
-          >
-            Top Results
+        <q-card-section v-if="searchQuery" class="search-results">
+          <div class="search-results__topline">
+            <div
+              class="text-subtitle2 text-primary text-weight-bold"
+              style="letter-spacing: 0.5px"
+            >
+              Top Results
+            </div>
+            <q-chip dense color="primary" text-color="white" class="q-ma-none">
+              {{ topResults.length }}
+            </q-chip>
           </div>
 
-          <q-list dark>
+          <q-list class="search-results__list">
             <q-item
               v-for="item in topResults"
               :key="item.name"
               clickable
               v-ripple
               @click="quickOpenProduct(item)"
-              class="q-px-none q-py-sm rounded-borders"
+              class="search-result-item"
             >
               <q-item-section avatar>
-                <q-avatar square style="border-radius: 4px; width: 48px; height: 48px">
-                  <img :src="item.image" :alt="item.name" style="object-fit: cover" />
+                <q-avatar square class="search-result-item__image">
+                  <img :src="item.image" :alt="item.name" />
                 </q-avatar>
               </q-item-section>
 
               <q-item-section>
-                <q-item-label class="text-weight-bold text-white text-body1">{{
+                <q-item-label class="text-weight-bold text-dark text-body1">{{
                   item.name
                 }}</q-item-label>
-                <q-item-label caption class="text-grey-5">
+                <q-item-label caption class="text-grey-7">
                   {{ item.category }} &bull; {{ item.vendor || 'Campus Vendor' }}
                 </q-item-label>
               </q-item-section>
 
               <q-item-section side>
-                <q-item-label class="text-grey-3 text-body2">
+                <q-item-label class="search-result-item__price">
                   {{ getPriceDisplay(item) }}
                 </q-item-label>
               </q-item-section>
             </q-item>
           </q-list>
 
-          <div v-if="topResults.length === 0" class="text-center text-grey-5 q-py-md">
-            No items found for "{{ searchQuery }}"
+          <div v-if="topResults.length === 0" class="search-empty q-py-lg">
+            <q-icon name="search_off" size="32px" color="grey-5" />
+            <div>No items found for "{{ searchQuery }}"</div>
           </div>
 
           <div v-else class="text-center q-mt-md q-mb-sm">
             <q-btn
-              flat
+              unelevated
+              rounded
               color="primary"
               no-caps
+              icon-right="arrow_forward"
               @click="seeAllResults"
               :label="`See all results for &quot;${searchQuery}&quot;`"
             />
@@ -221,7 +254,7 @@ export default defineComponent({
     const quickOpenProduct = (item) => {
       router.push({
         path: '/main', // (or '/' if that is what you were using)
-        query: { openProduct: item.name, t: Date.now() }, // <--- ADD Date.now()
+        query: { ...router.currentRoute.value.query, openProduct: item.name, t: Date.now() }, // <--- ADD Date.now()
       })
     }
 
