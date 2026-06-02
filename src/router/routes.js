@@ -9,6 +9,8 @@ const routes = [
       { path: 'page3', component: () => import('pages/ThriftPage.vue') },
       { path: 'page1', component: () => import('pages/ServicesPage.vue') },
       { path: 'page4', component: () => import('pages/LoginPage.vue') },
+      { path: 'portal', component: () => import('pages/PortalPage.vue') },
+      { path: 'actors', redirect: '/portal' },
     ],
   },
 
