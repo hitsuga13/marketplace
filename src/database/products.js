@@ -2,6 +2,7 @@
 import { loadState, saveState } from './storage.js'
 import { getUsers } from './users.js'
 import { syncProductsToSupabase } from './supabaseSync.js'
+import { normalizeStoredImage } from 'src/utils/assets'
 
 export const starterProducts = []
 
@@ -80,6 +81,7 @@ export const decreaseProductsStock = (items) => {
 export const getProducts = () => getSellerProducts().map((product) => ({
   ...product,
   active: product.active !== false,
+  image: normalizeStoredImage(product.image),
   vendor: product.vendor || product.seller || 'Campus Vendor',
 }))
 

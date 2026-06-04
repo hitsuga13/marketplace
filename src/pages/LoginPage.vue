@@ -202,7 +202,7 @@
 
         <section class="auth-form-pane">
           <div class="auth-brand">
-            <img src="/icons/upnm-logo.png" alt="UPNM logo" />
+            <img :src="getPublicAsset('icons/upnm-logo.png')" alt="UPNM logo" />
             <span>UPNM Campus Marketplace</span>
           </div>
 
@@ -499,6 +499,7 @@ import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import ImageCropDialog from 'src/components/ImageCropDialog.vue'
 import { getUploadSizeError } from 'src/utils/fileValidation'
+import { getPublicAsset } from 'src/utils/assets'
 import {
   generateRecoveryCode,
   getCurrentUser,

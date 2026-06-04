@@ -560,7 +560,7 @@ body {
   padding: 56px 16px;
   background:
     linear-gradient(90deg, rgba(15, 27, 51, 0.9), rgba(39, 69, 154, 0.72)),
-    url('/icons/f&b.jpg') center / cover fixed;
+    var(--asset-fnb) center / cover fixed;
 }
 
 .auth-shell {
@@ -1221,7 +1221,7 @@ body {
   color: white;
   background:
     linear-gradient(90deg, rgba(15, 27, 51, 0.92), rgba(39, 69, 154, 0.76)),
-    url('/icons/f&b.jpg') center / cover;
+    var(--asset-fnb) center / cover;
 }
 
 .role-hero h1 {
@@ -1243,19 +1243,19 @@ body {
 .buyer-hero {
   background:
     linear-gradient(90deg, rgba(15, 27, 51, 0.92), rgba(39, 69, 154, 0.68)),
-    url('/icons/f&b_3.jpg') center / cover;
+    var(--asset-fnb-menu) center / cover;
 }
 
 .seller-hero {
   background:
     linear-gradient(90deg, rgba(15, 27, 51, 0.92), rgba(39, 69, 154, 0.72)),
-    url('/icons/services.jpg') center / cover;
+    var(--asset-services) center / cover;
 }
 
 .admin-hero {
   background:
     linear-gradient(90deg, rgba(15, 27, 51, 0.94), rgba(39, 69, 154, 0.78)),
-    url('/icons/thrift.jpg') center / cover;
+    var(--asset-thrift) center / cover;
 }
 
 .role-band {

@@ -5,7 +5,7 @@
       <q-toolbar class="q-px-md">
         <q-toolbar-title class="row items-center no-wrap">
           <div class="brand-logo">
-            <img src="/icons/upnm-logo.png" alt="UPNM logo" />
+            <img :src="getPublicAsset('icons/upnm-logo.png')" alt="UPNM logo" />
           </div>
           <div>
             <div class="text-weight-bold brand-title-full">UPNM Campus Marketplace</div>
@@ -218,7 +218,7 @@
             >
               <q-item-section avatar>
                 <q-avatar square class="search-result-item__image">
-                  <img :src="item.image" :alt="item.name" />
+                  <img :src="getImageSrc(item.image)" :alt="item.name" />
                 </q-avatar>
               </q-item-section>
 
@@ -292,7 +292,7 @@
 
               <div class="cart-panel-item__content">
                 <q-avatar square class="cart-panel-item__image">
-                  <img :src="item.image" :alt="item.name" />
+                  <img :src="getImageSrc(item.image)" :alt="item.name" />
                 </q-avatar>
 
                 <div class="cart-panel-item__info">
@@ -425,7 +425,7 @@
                 <div class="seller-payment-card__items">
                   <div v-for="item in group.items" :key="item.uniqueKey" class="seller-payment-item">
                     <q-avatar square class="seller-payment-item__image">
-                      <img :src="item.image" :alt="item.name" />
+                      <img :src="getImageSrc(item.image)" :alt="item.name" />
                     </q-avatar>
                     <div>
                       <div class="seller-payment-item__name">{{ item.name }}</div>
@@ -489,6 +489,7 @@ import { defineComponent, ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { getUploadSizeError } from 'src/utils/fileValidation'
+import { getPublicAsset, normalizeStoredImage } from 'src/utils/assets'
 import {
   cart,
   cartCount,
@@ -592,6 +593,7 @@ export default defineComponent({
         query: { ...router.currentRoute.value.query, openProduct: item.name, t: Date.now() }, // <--- ADD Date.now()
       })
     }
+    const getImageSrc = (src) => normalizeStoredImage(src)
 
     // FIX: Safely pass the search term to the main page
     const seeAllResults = () => {
@@ -872,6 +874,8 @@ export default defineComponent({
       isMenuPage,
       topResults,
       getPriceDisplay,
+      getPublicAsset,
+      getImageSrc,
       quickOpenProduct,
       seeAllResults,
       openCartPanel,

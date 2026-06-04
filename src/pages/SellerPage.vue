@@ -37,7 +37,7 @@
               <q-item v-for="order in sellerOrders" :key="order.id" class="seller-order-item">
                 <q-item-section avatar>
                   <q-avatar square rounded>
-                    <img :src="order.image" :alt="order.productName" />
+                    <img :src="getImageSrc(order.image)" :alt="order.productName" />
                   </q-avatar>
                 </q-item-section>
                 <q-item-section>
@@ -138,7 +138,7 @@
                 class="seller-product-card"
                 @click="openEditProduct(product)"
               >
-                <q-img :src="product.image" :alt="product.name" ratio="1" fit="cover" />
+                <q-img :src="getImageSrc(product.image)" :alt="product.name" ratio="1" fit="cover" />
                 <q-card-section class="text-center">
                   <div class="text-subtitle2 text-weight-bold ellipsis">{{ product.name }}</div>
                   <div class="text-caption text-grey-7">{{ getCategoryLabel(product.category) }}</div>
@@ -212,7 +212,7 @@
           <div class="text-grey-7">Fill in product details and upload your product image.</div>
 
             <div class="seller-upload-preview q-mt-md">
-            <q-img v-if="form.image" :src="form.image" ratio="1" fit="cover" />
+            <q-img v-if="form.image" :src="getImageSrc(form.image)" ratio="1" fit="cover" />
             <div v-else class="seller-upload-empty">
               <q-icon name="image" size="48px" color="primary" />
               <div>Product image preview</div>
@@ -448,6 +448,7 @@ import { computed, ref } from 'vue'
 import { useQuasar } from 'quasar'
 import ImageCropDialog from 'src/components/ImageCropDialog.vue'
 import { getUploadSizeError } from 'src/utils/fileValidation'
+import { normalizeStoredImage } from 'src/utils/assets'
 import {
   addMessage,
   getConversationSummaries,
@@ -474,6 +475,7 @@ const productCropDialog = ref(false)
 const productCropSource = ref('')
 const editingProductId = ref(null)
 const buyerOrders = ref(getSellerOrders(currentUser.value?.name))
+const getImageSrc = (src) => normalizeStoredImage(src)
 
 const categoryOptions = [
   { label: 'Food & Beverages', value: 'FnB' },

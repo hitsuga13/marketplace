@@ -7,8 +7,28 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { initializeSupabaseCache } from 'src/database'
+import { getPublicAsset } from 'src/utils/assets'
 
 const isReady = ref(false)
+
+if (typeof document !== 'undefined') {
+  document.documentElement.style.setProperty(
+    '--asset-fnb',
+    `url("${getPublicAsset('icons/f&b.jpg')}")`,
+  )
+  document.documentElement.style.setProperty(
+    '--asset-fnb-menu',
+    `url("${getPublicAsset('icons/f&b_3.jpg')}")`,
+  )
+  document.documentElement.style.setProperty(
+    '--asset-services',
+    `url("${getPublicAsset('icons/services.jpg')}")`,
+  )
+  document.documentElement.style.setProperty(
+    '--asset-thrift',
+    `url("${getPublicAsset('icons/thrift.jpg')}")`,
+  )
+}
 
 onMounted(async () => {
   await initializeSupabaseCache()

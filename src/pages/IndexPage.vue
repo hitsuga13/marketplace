@@ -3,7 +3,7 @@
   <q-page class="home-page">
     <section class="hero-section">
       <div class="hero-media">
-        <img src="/icons/f&b.jpg" alt="UPNM Campus Marketplace featured food and campus items" />
+        <img :src="getPublicAsset('icons/f&b.jpg')" alt="UPNM Campus Marketplace featured food and campus items" />
       </div>
 
       <div class="hero-content">
@@ -45,7 +45,7 @@
         <div class="row q-col-gutter-lg">
           <div v-for="category in categories" :key="category.title" class="col-12 col-md-4">
             <q-card class="category-card" flat bordered>
-              <q-img :src="category.image" :alt="category.title" ratio="4/3" />
+              <q-img :src="getImageSrc(category.image)" :alt="category.title" ratio="4/3" />
               <q-card-section>
                 <div class="row items-center no-wrap">
                   <q-icon :name="category.icon" color="primary" size="28px" class="q-mr-sm" />
@@ -115,7 +115,7 @@
               bordered
               @click="showDetails(item)"
             >
-              <q-img :src="item.image" :alt="item.name" ratio="1" fit="cover" />
+              <q-img :src="getImageSrc(item.image)" :alt="item.name" ratio="1" fit="cover" />
               <q-card-section>
                 <div class="text-subtitle1 text-weight-bold ellipsis">{{ item.name }}</div>
                 <div class="text-caption text-grey-7">{{ getCategoryLabel(item.category) }}</div>
@@ -148,7 +148,7 @@
       <q-card class="detail-modal-card">
         <q-card-section class="row no-wrap q-pa-none full-height">
           <div class="col-6 bg-grey-2 flex flex-center relative-position">
-            <q-img :src="selectedItem.image" class="detail-image" fit="contain" />
+            <q-img :src="getImageSrc(selectedItem.image)" class="detail-image" fit="contain" />
             <q-btn
               icon="close"
               flat
@@ -425,6 +425,7 @@ import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { getUploadSizeError } from 'src/utils/fileValidation'
+import { getPublicAsset, normalizeStoredImage } from 'src/utils/assets'
 import {
   addMessage,
   addToCart,
@@ -465,7 +466,7 @@ const categories = [
   {
     title: 'Services',
     description: 'Printing, laminating, runners, and practical help from students nearby.',
-    image: '/icons/services.jpg',
+    image: 'icons/services.jpg',
     icon: 'design_services',
     cta: 'Find Services',
     filterTarget: 'Services',
@@ -473,7 +474,7 @@ const categories = [
   {
     title: 'Food & Beverages',
     description: 'Affordable meals, snacks, and quick cravings delivered around campus.',
-    image: '/icons/f&b_3.jpg',
+    image: 'icons/f&b_3.jpg',
     icon: 'restaurant',
     cta: 'See Menu',
     filterTarget: 'FnB',
@@ -481,7 +482,7 @@ const categories = [
   {
     title: 'Thrift',
     description: 'Pre-loved streetwear, jerseys, sneakers, and accessories with character.',
-    image: '/icons/thrift.jpg',
+    image: 'icons/thrift.jpg',
     icon: 'checkroom',
     cta: 'Shop Thrift',
     filterTarget: 'Thrift',
@@ -499,6 +500,7 @@ const activeMessages = computed(() => {
 })
 const selectedSeller = computed(() => getSellerForProduct(selectedItem.value))
 const sellerPaymentQr = computed(() => selectedSeller.value?.paymentQr || '')
+const getImageSrc = (src) => normalizeStoredImage(src)
 
 const getCategoryLabel = (catKey) => {
   if (catKey === 'FnB') return 'Food & Beverages'

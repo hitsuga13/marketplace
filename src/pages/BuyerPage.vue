@@ -58,7 +58,7 @@
             <q-item v-for="order in buyerOrders" :key="order.id" class="buyer-order-item">
               <q-item-section avatar>
                 <q-avatar square rounded>
-                  <img :src="order.image" :alt="order.productName" />
+                  <img :src="getImageSrc(order.image)" :alt="order.productName" />
                 </q-avatar>
               </q-item-section>
               <q-item-section>
@@ -116,7 +116,7 @@
             <q-item v-for="order in recentPurchases" :key="order.id">
               <q-item-section avatar>
                 <q-avatar square rounded>
-                  <img :src="order.image" :alt="order.productName" />
+                  <img :src="getImageSrc(order.image)" :alt="order.productName" />
                 </q-avatar>
               </q-item-section>
               <q-item-section>
@@ -143,6 +143,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useQuasar } from 'quasar'
+import { normalizeStoredImage } from 'src/utils/assets'
 import {
   cartCount,
   getBuyerOrders,
@@ -153,6 +154,7 @@ import {
 const $q = useQuasar()
 const currentUser = ref(getCurrentUser())
 const buyerOrders = ref(getBuyerOrders(currentUser.value?.id))
+const getImageSrc = (src) => normalizeStoredImage(src)
 const myOrders = computed(() => buyerOrders.value)
 const moneySpent = computed(() =>
   myOrders.value.reduce((sum, order) => (order.status === 'Completed' ? sum + Number(order.total || 0) : sum), 0),

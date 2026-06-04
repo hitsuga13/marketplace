@@ -1,5 +1,6 @@
 // Purpose: Background sync bridge between the existing local browser database and Supabase tables.
 import { supabase, isSupabaseConfigured } from 'src/supabase/client'
+import { normalizeStoredImage } from 'src/utils/assets'
 import { saveState } from './storage.js'
 
 let isPullingFromSupabase = false
@@ -79,7 +80,7 @@ const fromSupabaseProduct = (product) => ({
   vendor: product.vendor || product.seller || 'Campus Seller',
   category: product.category,
   name: product.name,
-  image: product.image,
+  image: normalizeStoredImage(product.image),
   price: Number(product.price || 0),
   stock: product.stock,
   desc1: product.desc1,
@@ -94,7 +95,7 @@ const toSupabaseOrder = (order) => ({
   product_id: Number.isSafeInteger(Number(order.productId)) ? Number(order.productId) : null,
   product_name: order.productName || '',
   vendor: order.vendor || 'Campus Vendor',
-  image: order.image || '',
+  image: normalizeStoredImage(order.image || ''),
   quantity: Number(order.quantity || 1),
   total: Number(order.total || 0),
   selected_variation: order.selectedVariation || '',

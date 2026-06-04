@@ -166,7 +166,7 @@
             <q-item v-for="product in sellerProducts" :key="product.id">
               <q-item-section avatar>
                 <q-avatar square rounded>
-                  <img :src="product.image" :alt="product.name" />
+                  <img :src="getImageSrc(product.image)" :alt="product.name" />
                 </q-avatar>
               </q-item-section>
               <q-item-section>
@@ -204,7 +204,7 @@
             <q-item v-for="order in orders" :key="order.id">
               <q-item-section avatar>
                 <q-avatar square rounded>
-                  <img :src="order.image" :alt="order.productName" />
+                  <img :src="getImageSrc(order.image)" :alt="order.productName" />
                 </q-avatar>
               </q-item-section>
               <q-item-section>
@@ -288,6 +288,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useQuasar } from 'quasar'
+import { normalizeStoredImage } from 'src/utils/assets'
 import {
   getOrders,
   getSellerProducts,
@@ -309,6 +310,7 @@ const reportSellerFilter = ref(null)
 const reportStatusFilter = ref(null)
 const reportStartDate = ref('')
 const reportEndDate = ref('')
+const getImageSrc = (src) => normalizeStoredImage(src)
 
 const reportTypeOptions = [
   { label: 'Marketplace Summary', value: 'marketplace-summary' },
