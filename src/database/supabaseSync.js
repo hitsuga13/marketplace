@@ -1,0 +1,210 @@
+// Purpose: Background sync bridge between the existing local browser database and Supabase tables.
+import { supabase, isSupabaseConfigured } from 'src/supabase/client'
+import { saveState } from './storage.js'
+
+let isPullingFromSupabase = false
+const pendingTimers = {}
+
+const parseLocalId = (value) => {
+  const text = String(value ?? '')
+  const number = Number(text)
+  return text && Number.isSafeInteger(number) && String(number) === text ? number : text
+}
+
+const safeArray = (value) => (Array.isArray(value) ? value : [])
+
+const notifyLocalDataChanged = () => {
+  window.dispatchEvent(new Event('upnm-supabase-cache-updated'))
+  window.dispatchEvent(new Event('upnm-chat-updated'))
+}
+
+const queueSync = (name, task) => {
+  if (!isSupabaseConfigured || isPullingFromSupabase) return
+
+  clearTimeout(pendingTimers[name])
+  pendingTimers[name] = setTimeout(() => {
+    task().catch((error) => {
+      console.warn(`Supabase ${name} sync failed`, error)
+    })
+  }, 350)
+}
+
+const toSupabaseUser = (user) => ({
+  id: Number.isSafeInteger(Number(user.id)) ? Number(user.id) : undefined,
+  local_id: String(user.id),
+  name: user.name || '',
+  email: String(user.email || '').toLowerCase(),
+  phone: user.phone || '',
+  password: user.password || '',
+  role: user.role || 'buyer',
+  avatar: user.avatar || '',
+  payment_qr: user.paymentQr || '',
+  recovery_code: user.recoveryCode || '',
+  active: user.active !== false,
+})
+
+const fromSupabaseUser = (user) => ({
+  id: parseLocalId(user.local_id || user.id),
+  name: user.name,
+  email: user.email,
+  phone: user.phone || '',
+  password: user.password || '',
+  role: user.role,
+  avatar: user.avatar || '',
+  paymentQr: user.payment_qr || '',
+  recoveryCode: user.recovery_code || '',
+  active: user.active !== false,
+})
+
+const toSupabaseProduct = (product) => ({
+  local_id: String(product.id),
+  seller_id: Number.isSafeInteger(Number(product.sellerId)) ? Number(product.sellerId) : null,
+  seller: product.seller || product.vendor || 'Campus Seller',
+  vendor: product.vendor || product.seller || 'Campus Seller',
+  category: product.category || 'FnB',
+  name: product.name || '',
+  image: product.image || '',
+  price: Number(product.price || 0),
+  stock: product.stock === '' || product.stock === undefined ? null : Number(product.stock),
+  desc1: product.desc1 || product.description || '',
+  variations: safeArray(product.variations),
+  addons: safeArray(product.addons),
+  active: product.active !== false,
+})
+
+const fromSupabaseProduct = (product) => ({
+  id: parseLocalId(product.local_id || product.id),
+  sellerId: product.seller_id,
+  seller: product.seller || product.vendor || 'Campus Seller',
+  vendor: product.vendor || product.seller || 'Campus Seller',
+  category: product.category,
+  name: product.name,
+  image: product.image,
+  price: Number(product.price || 0),
+  stock: product.stock,
+  desc1: product.desc1,
+  variations: safeArray(product.variations),
+  addons: safeArray(product.addons),
+  active: product.active !== false,
+})
+
+const toSupabaseOrder = (order) => ({
+  local_id: String(order.id),
+  buyer_id: Number.isSafeInteger(Number(order.buyerId)) ? Number(order.buyerId) : null,
+  product_id: Number.isSafeInteger(Number(order.productId)) ? Number(order.productId) : null,
+  product_name: order.productName || '',
+  vendor: order.vendor || 'Campus Vendor',
+  image: order.image || '',
+  quantity: Number(order.quantity || 1),
+  total: Number(order.total || 0),
+  selected_variation: order.selectedVariation || '',
+  selected_addons: safeArray(order.selectedAddons),
+  receipt: order.receipt || '',
+  receipt_file_name: order.receiptFileName || '',
+  status: order.status || 'In Progress',
+  created_at: order.createdAt || new Date().toISOString(),
+  updated_at: order.updatedAt || order.reviewedAt || new Date().toISOString(),
+})
+
+const fromSupabaseOrder = (order) => ({
+  id: parseLocalId(order.local_id || order.id),
+  buyerId: parseLocalId(order.buyer_id),
+  productId: order.product_id ? parseLocalId(order.product_id) : null,
+  productName: order.product_name,
+  vendor: order.vendor,
+  image: order.image || '',
+  quantity: Number(order.quantity || 1),
+  total: Number(order.total || 0),
+  selectedVariation: order.selected_variation || '',
+  selectedAddons: safeArray(order.selected_addons),
+  receipt: order.receipt || '',
+  receiptFileName: order.receipt_file_name || '',
+  status: order.status,
+  createdAt: order.created_at,
+  updatedAt: order.updated_at,
+})
+
+const toSupabaseMessage = (message) => ({
+  local_id: String(message.id),
+  conversation_id: message.conversationId,
+  product_id: Number.isSafeInteger(Number(message.productId)) ? Number(message.productId) : null,
+  product_name: message.productName || '',
+  buyer_id: Number.isSafeInteger(Number(message.buyerId)) ? Number(message.buyerId) : null,
+  buyer_name: message.buyerName || '',
+  seller_name: message.sellerName || 'Campus Seller',
+  sender_role: message.senderRole,
+  message: message.text || '',
+  created_at: message.createdAt || new Date().toISOString(),
+})
+
+const fromSupabaseMessage = (message) => ({
+  id: parseLocalId(message.local_id || message.id),
+  conversationId: message.conversation_id,
+  productId: message.product_id ? parseLocalId(message.product_id) : null,
+  productName: message.product_name,
+  buyerId: parseLocalId(message.buyer_id),
+  buyerName: message.buyer_name,
+  sellerName: message.seller_name,
+  senderRole: message.sender_role,
+  text: message.message,
+  createdAt: message.created_at,
+})
+
+export const initializeSupabaseCache = async () => {
+  if (!isSupabaseConfigured || !supabase) return false
+
+  isPullingFromSupabase = true
+
+  try {
+    const [{ data: users }, { data: products }, { data: orders }, { data: messages }] =
+      await Promise.all([
+        supabase.from('users').select('*').order('created_at', { ascending: true }),
+        supabase.from('products').select('*').order('created_at', { ascending: false }),
+        supabase.from('orders').select('*').order('created_at', { ascending: false }),
+        supabase.from('chat_messages').select('*').order('created_at', { ascending: true }),
+      ])
+
+    if (users) saveState('upnm-users', users.map(fromSupabaseUser))
+    if (products) saveState('upnm-seller-products', products.map(fromSupabaseProduct))
+    if (orders) saveState('upnm-buyer-orders', orders.map(fromSupabaseOrder))
+    if (messages) saveState('upnm-chats', messages.map(fromSupabaseMessage))
+
+    notifyLocalDataChanged()
+    return true
+  } catch (error) {
+    console.warn('Supabase cache initialization failed', error)
+    return false
+  } finally {
+    isPullingFromSupabase = false
+  }
+}
+
+export const syncUsersToSupabase = (users) =>
+  queueSync('users', async () => {
+    const rows = users.map(toSupabaseUser)
+    if (rows.length === 0) return
+    await supabase.from('users').upsert(rows, { onConflict: 'local_id' })
+  })
+
+export const syncProductsToSupabase = (products) =>
+  queueSync('products', async () => {
+    const rows = products.map(toSupabaseProduct)
+
+    if (rows.length > 0) {
+      await supabase.from('products').upsert(rows, { onConflict: 'local_id' })
+    }
+  })
+
+export const syncOrdersToSupabase = (orders) =>
+  queueSync('orders', async () => {
+    const rows = orders.map(toSupabaseOrder)
+    if (rows.length === 0) return
+    await supabase.from('orders').upsert(rows, { onConflict: 'local_id' })
+  })
+
+export const syncChatsToSupabase = (messages) =>
+  queueSync('chat_messages', async () => {
+    const rows = messages.map(toSupabaseMessage)
+    if (rows.length === 0) return
+    await supabase.from('chat_messages').upsert(rows, { onConflict: 'local_id' })
+  })

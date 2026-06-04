@@ -1,3 +1,7 @@
+<!--
+  ARCHIVED INACTIVE FILE
+  This old Quasar starter component is kept only for reference and is not used by the current system.
+
 <template>
   <q-item clickable tag="a" target="_blank" :href="props.link">
     <q-item-section v-if="props.icon" avatar>
@@ -34,3 +38,4 @@ const props = defineProps({
   },
 })
 </script>
+-->

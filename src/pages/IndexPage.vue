@@ -1,29 +1,20 @@
+<!-- Purpose: Public marketplace menu page for browsing, searching, product details, chat, cart, and buy-now flow. -->
 <template>
   <q-page class="home-page">
     <section class="hero-section">
       <div class="hero-media">
-        <img src="/icons/f&b.jpg" alt="UPNM Marketplace featured food and campus items" />
+        <img src="/icons/f&b.jpg" alt="UPNM Campus Marketplace featured food and campus items" />
       </div>
 
       <div class="hero-content">
         <q-badge color="secondary" text-color="dark" class="q-mb-md" label="Campus marketplace" />
-        <h1>UPNM Marketplace</h1>
+        <h1>UPNM Campus Marketplace</h1>
         <p>
           Discover student-run food, reliable campus services, and thrift finds around UPNM in one
           quick place.
         </p>
 
         <div class="row q-col-gutter-sm hero-actions">
-          <div class="col-12 col-sm-auto">
-            <q-btn
-              unelevated
-              color="secondary"
-              text-color="dark"
-              icon="restaurant_menu"
-              label="Explore Food"
-              @click="scrollToMarketplace('FnB')"
-            />
-          </div>
           <div class="col-12 col-sm-auto">
             <q-btn
               outline
@@ -44,20 +35,11 @@
             <q-badge
               color="secondary"
               text-color="dark"
-              :label="activeSearch ? 'Search Results' : getCategoryLabel(activeCategory)"
+              label="All"
             />
-            <h2>
-              {{
-                activeSearch
-                  ? `Results for "${activeSearch}"`
-                  : activeCategory === 'All'
-                    ? 'All Campus Items'
-                    : getCategoryLabel(activeCategory)
-              }}
-            </h2>
+            <h2>All Campus Items</h2>
           </div>
-          <p v-if="activeSearch">Found {{ filteredItems.length }} item(s) matching your search.</p>
-          <p v-else>Showing actual real-time availability from student vendors.</p>
+          <p>Showing actual real-time availability from student vendors.</p>
         </div>
 
         <div class="row q-col-gutter-lg">
@@ -137,6 +119,9 @@
               <q-card-section>
                 <div class="text-subtitle1 text-weight-bold ellipsis">{{ item.name }}</div>
                 <div class="text-caption text-grey-7">{{ getCategoryLabel(item.category) }}</div>
+                <div :class="['text-caption', isProductOutOfStock(item) ? 'text-negative' : 'text-grey-7']">
+                  {{ getStockLabel(item) }}
+                </div>
 
                 <div class="price text-primary text-bold q-mt-sm">
                   <span v-if="item.variations?.length > 0">Options Available</span>
@@ -178,18 +163,42 @@
             <div class="q-mb-md">
               <div class="text-overline text-primary">
                 {{ getCategoryLabel(selectedItem.category) }}
-                <span v-if="selectedItem.vendor">/ {{ selectedItem.vendor }}</span>
               </div>
               <div class="text-h4 text-bold">{{ selectedItem.name }}</div>
             </div>
 
             <q-scroll-area class="col q-pr-md">
+              <div class="detail-seller-row q-mb-md">
+                <q-avatar size="44px" class="detail-seller-avatar">
+                  <img v-if="selectedSeller?.avatar" :src="selectedSeller.avatar" alt="Seller profile" />
+                  <q-icon v-else name="storefront" />
+                </q-avatar>
+                <div>
+                  <div class="detail-seller-label">Seller</div>
+                  <div class="detail-seller-name">
+                    {{ selectedItem.vendor || selectedItem.seller || 'Campus Seller' }}
+                  </div>
+                </div>
+              </div>
+
               <div class="description-box q-mb-md text-body1 text-grey-9">
                 {{ selectedItem.desc1 }}
               </div>
 
+              <q-chip
+                dense
+                :color="isProductOutOfStock(selectedItem) ? 'negative' : 'primary'"
+                text-color="white"
+                icon="inventory_2"
+                :label="getStockLabel(selectedItem)"
+                class="q-mb-md"
+              />
+
               <div v-if="selectedItem.variations?.length > 0" class="q-mb-md">
-                <div class="text-subtitle2 q-mb-sm text-bold text-grey-9">Variation</div>
+                <div class="text-subtitle2 q-mb-xs text-bold text-grey-9">Variation</div>
+                <div class="text-caption text-grey-7 q-mb-sm">
+                  The final price depends on the variation you choose.
+                </div>
                 <div class="variation-scroll-container">
                   <div class="row q-gutter-xs">
                     <q-btn
@@ -273,6 +282,7 @@
                   label="Chat"
                   class="col-auto"
                   style="min-width: 80px"
+                  @click="openChat"
                 />
                 <q-btn
                   outline
@@ -280,13 +290,131 @@
                   icon="shopping_cart"
                   label="ADD"
                   class="col"
+                  :disable="isProductOutOfStock(selectedItem)"
                   @click="handleAddToCart"
                 />
-                <q-btn unelevated color="primary" label="BUY NOW" class="col-5 text-bold" />
+                <q-btn
+                  unelevated
+                  color="primary"
+                  label="BUY NOW"
+                  class="col-5 text-bold"
+                  :disable="isProductOutOfStock(selectedItem)"
+                  @click="handleBuyNow"
+                />
               </div>
             </div>
           </div>
         </q-card-section>
+      </q-card>
+    </q-dialog>
+
+    <q-dialog v-model="chatDialog">
+      <q-card class="login-required-card">
+        <q-card-section>
+          <div class="text-h6">Chat with {{ selectedItem.vendor || 'Campus Vendor' }}</div>
+          <div class="chat-thread q-mt-md">
+            <div
+              v-for="message in activeMessages"
+              :key="message.id"
+              :class="['chat-bubble', message.senderRole === 'buyer' ? 'buyer' : 'seller']"
+            >
+              {{ message.text }}
+            </div>
+            <div v-if="activeMessages.length === 0" class="text-grey-7 text-center">
+              Start a conversation about {{ selectedItem.name }}.
+            </div>
+          </div>
+          <q-input v-model="chatText" outlined dense placeholder="Type message..." class="q-mt-md">
+            <template v-slot:append>
+              <q-btn flat round dense icon="send" color="primary" @click="sendChat" />
+            </template>
+          </q-input>
+        </q-card-section>
+      </q-card>
+    </q-dialog>
+
+    <q-dialog v-model="loginRequiredDialog">
+      <q-card class="login-required-card">
+        <q-card-section class="text-center q-pa-lg">
+          <q-avatar color="primary" text-color="white" size="58px">
+            <q-icon name="lock" size="32px" />
+          </q-avatar>
+          <div class="text-h6 text-weight-bold q-mt-md">Please login first</div>
+          <p class="text-grey-7 q-mt-sm q-mb-none">
+            You need to sign in or sign up as a buyer before adding products to cart.
+          </p>
+        </q-card-section>
+
+        <q-card-actions align="center" class="q-px-lg q-pb-lg">
+          <q-btn flat color="grey-7" label="Cancel" v-close-popup />
+          <q-btn
+            unelevated
+            color="primary"
+            icon="login"
+            label="Go to Sign in"
+            @click="goToLogin"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
+    <q-dialog v-model="paymentDialog">
+      <q-card class="payment-qr-card">
+        <q-card-section class="text-center">
+          <q-avatar color="primary" text-color="white" size="58px">
+            <q-icon name="qr_code_2" size="34px" />
+          </q-avatar>
+          <div class="text-h6 text-weight-bold q-mt-md">Pay Seller via QR</div>
+          <div class="text-grey-7">{{ selectedItem.vendor || 'Campus Seller' }}</div>
+          <div class="text-h5 text-primary text-weight-bold q-mt-sm">
+            RM {{ finalPrice.toFixed(2) }}
+          </div>
+
+          <div class="payment-qr-box q-mt-md">
+            <q-img
+              v-if="sellerPaymentQr"
+              :src="sellerPaymentQr"
+              ratio="1"
+              fit="contain"
+            />
+            <div v-else class="payment-qr-empty">
+              <q-icon name="qr_code_2" size="54px" color="grey-5" />
+              <div>This seller has not uploaded a payment QR yet.</div>
+            </div>
+          </div>
+
+          <p class="text-grey-7 q-mt-md q-mb-md">
+            Scan the QR, complete payment, upload your receipt, then click the button below.
+          </p>
+
+          <input
+            ref="receiptInput"
+            type="file"
+            accept="image/*,.pdf"
+            class="hidden-file-input"
+            @change="handleReceiptUpload"
+          />
+          <q-btn
+            outline
+            color="primary"
+            icon="upload_file"
+            no-caps
+            class="receipt-upload-btn"
+            :label="receiptFileName || 'Upload payment receipt'"
+            @click="receiptInput?.click()"
+          />
+        </q-card-section>
+        <q-card-actions align="center" class="q-px-md q-pb-md">
+          <q-btn flat color="grey-7" label="Cancel" v-close-popup />
+          <q-btn
+            unelevated
+            color="primary"
+            icon="check_circle"
+            label="I have paid"
+            :disable="!paymentReceipt"
+            @click="confirmBuyNowPayment"
+          />
+        </q-card-actions>
       </q-card>
     </q-dialog>
   </q-page>
@@ -294,16 +422,36 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
-import { allProducts } from '../data/products.js'
-import { addToCart } from '../data/cart.js'
+import { getUploadSizeError } from 'src/utils/fileValidation'
+import {
+  addMessage,
+  addToCart,
+  createOrder,
+  getConversationId,
+  getCurrentUser,
+  getProductStock,
+  getProductMessages,
+  getProducts,
+  getSellerForProduct,
+  isProductOutOfStock,
+  decreaseProductStock,
+} from 'src/database'
 
 const $q = useQuasar()
 const route = useRoute()
+const router = useRouter()
 
 const activeCategory = ref('All')
 const activeSearch = ref('')
+const loginRequiredDialog = ref(false)
+const chatDialog = ref(false)
+const paymentDialog = ref(false)
+const chatText = ref('')
+const paymentReceipt = ref('')
+const receiptFileName = ref('')
+const receiptInput = ref(null)
 
 // This dynamically changes the tab text if a search is active!
 const tabOptions = computed(() => [
@@ -344,16 +492,30 @@ const detailsModal = ref(false)
 const selectedItem = ref({})
 const selectedVar = ref(null)
 const selectedAddons = ref([])
+const activeMessages = computed(() => {
+  const currentUser = getCurrentUser()
+  if (!selectedItem.value?.id || !currentUser) return []
+  return getProductMessages(getConversationId(selectedItem.value, currentUser))
+})
+const selectedSeller = computed(() => getSellerForProduct(selectedItem.value))
+const sellerPaymentQr = computed(() => selectedSeller.value?.paymentQr || '')
 
 const getCategoryLabel = (catKey) => {
   if (catKey === 'FnB') return 'Food & Beverages'
   return catKey || 'General'
 }
 
+const getStockLabel = (item) => {
+  const stock = getProductStock(item)
+  if (stock === null) return 'Stock available'
+  if (stock === 0) return 'Out of stock'
+  return `${stock} in stock`
+}
+
 // Data Filter Calculations Engine
 // Data Filter Calculations Engine
 const filteredItems = computed(() => {
-  let baseItems = allProducts
+  let baseItems = getProducts().filter((item) => item.active !== false)
 
   // Use activeSearch instead of route.query directly
   if (activeSearch.value) {
@@ -472,7 +634,7 @@ watch(
 
     // Handle Search Modal quick opens
     if (newQuery.openProduct) {
-      const foundProduct = allProducts.find((p) => p.name === newQuery.openProduct)
+      const foundProduct = getProducts().find((p) => p.name === newQuery.openProduct)
 
       // Removed the '!detailsModal.value' check so it always triggers
       if (foundProduct) {
@@ -498,18 +660,34 @@ const toggleAddon = (addon) => {
 }
 const isAddonSelected = (addon) => selectedAddons.value.some((a) => a.label === addon.label)
 
+const requireBuyerLogin = () => {
+  const currentUser = getCurrentUser()
+  if (currentUser?.role === 'buyer') return true
+
+  loginRequiredDialog.value = true
+  return false
+}
+
+const openChat = () => {
+  if (!requireBuyerLogin()) return
+  chatDialog.value = true
+}
+
 const handleAddToCart = () => {
-  if (selectedItem.value.variations?.length > 0 && !selectedVar.value) {
+  if (!requireBuyerLogin()) return
+
+  if (!validateSelection()) return
+
+  const added = addToCart(selectedItem.value, selectedVar.value, finalPrice.value, selectedAddons.value)
+  if (!added) {
     $q.notify({
       type: 'negative',
-      message: 'Please select a variation first!',
+      message: `${selectedItem.value.name} does not have enough stock.`,
       position: 'top',
       timeout: 2000,
     })
     return
   }
-
-  addToCart(selectedItem.value, selectedVar.value, finalPrice.value, selectedAddons.value)
 
   $q.notify({
     message: 'Added to cart',
@@ -521,6 +699,116 @@ const handleAddToCart = () => {
     classes: 'custom-added-notify',
     badgeStyle: 'display: none',
   })
+}
+
+const validateSelection = () => {
+  if (isProductOutOfStock(selectedItem.value)) {
+    $q.notify({
+      type: 'negative',
+      message: 'This product is out of stock.',
+      position: 'top',
+      timeout: 2000,
+    })
+    return false
+  }
+
+  if (selectedItem.value.variations?.length > 0 && !selectedVar.value) {
+    $q.notify({
+      type: 'negative',
+      message: 'Please select a variation first!',
+      position: 'top',
+      timeout: 2000,
+    })
+    return false
+  }
+
+  return true
+}
+
+const handleBuyNow = () => {
+  if (!requireBuyerLogin()) return
+  if (!validateSelection()) return
+
+  paymentReceipt.value = ''
+  receiptFileName.value = ''
+  paymentDialog.value = true
+}
+
+const handleReceiptUpload = (event) => {
+  const file = event?.target?.files?.[0]
+  if (!file) return
+
+  const uploadError = getUploadSizeError(file, 'receipt')
+  if (uploadError) {
+    if (event.target) event.target.value = ''
+    $q.notify({
+      type: 'negative',
+      message: uploadError,
+      position: 'top',
+    })
+    return
+  }
+
+  const reader = new FileReader()
+  reader.onload = () => {
+    paymentReceipt.value = reader.result
+    receiptFileName.value = file.name
+    if (receiptInput.value) receiptInput.value.value = ''
+  }
+  reader.readAsDataURL(file)
+}
+
+const confirmBuyNowPayment = () => {
+  const currentUser = getCurrentUser()
+  if (!paymentReceipt.value || !currentUser) return
+
+  createOrder({
+    buyerId: currentUser.id,
+    productId: selectedItem.value.id,
+    productName: selectedItem.value.name,
+    vendor: selectedItem.value.vendor || selectedItem.value.seller || 'Campus Vendor',
+    image: selectedItem.value.image,
+    total: finalPrice.value,
+    quantity: 1,
+    selectedVariation: selectedVar.value?.label || '',
+    selectedAddons: selectedAddons.value.map((addon) => ({ ...addon })),
+    receipt: paymentReceipt.value,
+    receiptFileName: receiptFileName.value,
+  })
+  const updatedProduct = decreaseProductStock(selectedItem.value.id, 1)
+  if (updatedProduct) selectedItem.value = { ...selectedItem.value, stock: updatedProduct.stock }
+
+  paymentDialog.value = false
+  detailsModal.value = false
+  paymentReceipt.value = ''
+  receiptFileName.value = ''
+  $q.notify({
+    color: 'primary',
+    icon: 'receipt_long',
+    message: 'Receipt uploaded. Order is waiting for seller confirmation.',
+    position: 'top',
+  })
+}
+
+const goToLogin = () => {
+  loginRequiredDialog.value = false
+  detailsModal.value = false
+  router.push('/page4')
+}
+
+const sendChat = () => {
+  const currentUser = getCurrentUser()
+  if (!chatText.value.trim() || !currentUser) return
+
+  addMessage({
+    conversationId: getConversationId(selectedItem.value, currentUser),
+    product: selectedItem.value,
+    buyer: currentUser,
+    senderRole: 'buyer',
+    text: chatText.value.trim(),
+  })
+
+  chatText.value = ''
 }
 </script>
 
@@ -569,6 +857,35 @@ const handleAddToCart = () => {
   border: 1px solid #e0e0e0;
   border-radius: 8px;
 }
+.login-required-card {
+  width: min(420px, calc(100vw - 32px));
+  border-radius: 8px;
+}
+.chat-thread {
+  display: grid;
+  gap: 10px;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 14px;
+  border-radius: 8px;
+  background: #eef2f8;
+}
+.chat-bubble {
+  width: fit-content;
+  max-width: 82%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  line-height: 1.4;
+}
+.chat-bubble.seller {
+  background: white;
+  color: #17233d;
+}
+.chat-bubble.buyer {
+  justify-self: end;
+  background: #27459a;
+  color: white;
+}
 
 :deep(.custom-added-notify) {
   width: 140px;
@@ -587,5 +904,40 @@ const handleAddToCart = () => {
 :deep(.custom-added-notify .q-notification__message) {
   font-size: 15px;
   font-weight: bold;
+}
+
+@media (max-width: 700px) {
+  .detail-modal-card {
+    width: calc(100vw - 18px);
+    max-width: calc(100vw - 18px);
+    height: min(92vh, 760px);
+    overflow-y: auto;
+  }
+
+  .detail-modal-card .full-height {
+    height: auto !important;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .detail-modal-card .col-6 {
+    width: 100%;
+    max-width: 100%;
+    flex: 0 0 auto;
+  }
+
+  .detail-image {
+    height: 260px;
+  }
+
+  .detail-modal-card .text-h4 {
+    font-size: 1.55rem;
+    line-height: 1.15;
+  }
+
+  .detail-modal-card .text-h3 {
+    font-size: 2rem;
+  }
 }
 </style>

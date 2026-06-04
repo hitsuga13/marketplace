@@ -1,3 +1,7 @@
+<!--
+  ARCHIVED INACTIVE FILE
+  This old page is kept only for reference and is not used by the current system.
+
 <template>
   <div class="thrift-page q-pa-lg">
     <h1 class="text-h2 q-mb-md text-center">Services</h1>
@@ -105,3 +109,4 @@ const slide = ref('1')
   margin-top: auto;
 }
 </style>
+-->
