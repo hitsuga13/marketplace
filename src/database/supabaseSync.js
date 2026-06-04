@@ -30,6 +30,10 @@ const queueSync = (name, task) => {
   }, 350)
 }
 
+const assertSupabaseOk = ({ error }, action) => {
+  if (error) throw new Error(`${action}: ${error.message}`)
+}
+
 const toSupabaseUser = (user) => ({
   id: Number.isSafeInteger(Number(user.id)) ? Number(user.id) : undefined,
   local_id: String(user.id),
@@ -128,7 +132,8 @@ const fromSupabaseOrder = (order) => ({
 const toSupabaseMessage = (message) => ({
   local_id: String(message.id),
   conversation_id: message.conversationId,
-  product_id: Number.isSafeInteger(Number(message.productId)) ? Number(message.productId) : null,
+  // Keep product reference soft for chat because existing product IDs can be local string IDs.
+  product_id: null,
   product_name: message.productName || '',
   buyer_id: Number.isSafeInteger(Number(message.buyerId)) ? Number(message.buyerId) : null,
   buyer_name: message.buyerName || '',
@@ -184,7 +189,10 @@ export const syncUsersToSupabase = (users) =>
   queueSync('users', async () => {
     const rows = users.map(toSupabaseUser)
     if (rows.length === 0) return
-    await supabase.from('users').upsert(rows, { onConflict: 'local_id' })
+    assertSupabaseOk(
+      await supabase.from('users').upsert(rows, { onConflict: 'local_id' }),
+      'Sync users',
+    )
   })
 
 export const syncProductsToSupabase = (products) =>
@@ -192,7 +200,10 @@ export const syncProductsToSupabase = (products) =>
     const rows = products.map(toSupabaseProduct)
 
     if (rows.length > 0) {
-      await supabase.from('products').upsert(rows, { onConflict: 'local_id' })
+      assertSupabaseOk(
+        await supabase.from('products').upsert(rows, { onConflict: 'local_id' }),
+        'Sync products',
+      )
     }
   })
 
@@ -200,12 +211,18 @@ export const syncOrdersToSupabase = (orders) =>
   queueSync('orders', async () => {
     const rows = orders.map(toSupabaseOrder)
     if (rows.length === 0) return
-    await supabase.from('orders').upsert(rows, { onConflict: 'local_id' })
+    assertSupabaseOk(
+      await supabase.from('orders').upsert(rows, { onConflict: 'local_id' }),
+      'Sync orders',
+    )
   })
 
 export const syncChatsToSupabase = (messages) =>
   queueSync('chat_messages', async () => {
     const rows = messages.map(toSupabaseMessage)
     if (rows.length === 0) return
-    await supabase.from('chat_messages').upsert(rows, { onConflict: 'local_id' })
+    assertSupabaseOk(
+      await supabase.from('chat_messages').upsert(rows, { onConflict: 'local_id' }),
+      'Sync chat messages',
+    )
   })

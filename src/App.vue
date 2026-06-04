@@ -5,11 +5,12 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { initializeSupabaseCache } from 'src/database'
 import { getPublicAsset } from 'src/utils/assets'
 
 const isReady = ref(false)
+let supabaseRefreshTimer = null
 
 if (typeof document !== 'undefined') {
   document.documentElement.style.setProperty(
@@ -33,6 +34,15 @@ if (typeof document !== 'undefined') {
 onMounted(async () => {
   await initializeSupabaseCache()
   isReady.value = true
+
+  // Keep live pages fresh when another user sends chats, posts products, or updates orders.
+  supabaseRefreshTimer = window.setInterval(() => {
+    initializeSupabaseCache()
+  }, 5000)
+})
+
+onBeforeUnmount(() => {
+  if (supabaseRefreshTimer) window.clearInterval(supabaseRefreshTimer)
 })
 </script>
 

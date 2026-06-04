@@ -126,7 +126,7 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
   addMessage,
   getBuyerConversationSummaries,
@@ -164,6 +164,15 @@ const filteredConversations = computed(() => {
 
 const activeConversationMessages = computed(() => activeConversation.value?.messages || [])
 const currentReadKey = computed(() => `${currentUser.value?.role || 'guest'}-${currentUser.value?.id || currentUser.value?.name || 'none'}`)
+
+const refreshActiveConversation = () => {
+  if (!activeConversation.value) return
+
+  const refreshed = displayedConversations.value.find(
+    (conversation) => conversation.conversationId === activeConversation.value.conversationId,
+  )
+  if (refreshed) activeConversation.value = refreshed
+}
 
 const getConversationName = (conversation) => {
   if (!conversation) return ''
@@ -251,4 +260,12 @@ const sendMessage = () => {
   markConversationRead(refreshed)
   messageText.value = ''
 }
+
+onMounted(() => {
+  window.addEventListener('upnm-chat-updated', refreshActiveConversation)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('upnm-chat-updated', refreshActiveConversation)
+})
 </script>

@@ -5,6 +5,12 @@ import { syncChatsToSupabase } from './supabaseSync.js'
 
 export const chats = ref(loadState('upnm-chats', []))
 
+if (typeof window !== 'undefined') {
+  window.addEventListener('upnm-supabase-cache-updated', () => {
+    chats.value = loadState('upnm-chats', [])
+  })
+}
+
 const saveChats = () => {
   saveState('upnm-chats', chats.value)
   syncChatsToSupabase(chats.value)
