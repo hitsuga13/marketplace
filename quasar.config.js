@@ -44,7 +44,8 @@ export default defineConfig((/* ctx */) => {
 
       // rebuildCache: true, // rebuilds Vite/linter/etc cache on startup
 
-      // publicPath: '/',
+      // GitHub Pages serves this repo under /marketplace/. Keep local dev at root.
+      publicPath: process.env.GITHUB_PAGES === 'true' ? '/marketplace/' : '/',
       // analyze: true,
       // env: {},
       // rawDefine: {}
