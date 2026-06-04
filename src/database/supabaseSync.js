@@ -3,7 +3,6 @@ import { supabase, isSupabaseConfigured } from 'src/supabase/client'
 import { normalizeStoredImage } from 'src/utils/assets'
 import { saveState } from './storage.js'
 
-let isPullingFromSupabase = false
 const pendingTimers = {}
 
 const parseLocalId = (value) => {
@@ -20,7 +19,7 @@ const notifyLocalDataChanged = () => {
 }
 
 const queueSync = (name, task) => {
-  if (!isSupabaseConfigured || isPullingFromSupabase) return
+  if (!isSupabaseConfigured) return
 
   clearTimeout(pendingTimers[name])
   pendingTimers[name] = setTimeout(() => {
@@ -63,7 +62,8 @@ const fromSupabaseUser = (user) => ({
 
 const toSupabaseProduct = (product) => ({
   local_id: String(product.id),
-  seller_id: Number.isSafeInteger(Number(product.sellerId)) ? Number(product.sellerId) : null,
+  seller_id: null,
+  seller_local_id: product.sellerId ? String(product.sellerId) : null,
   seller: product.seller || product.vendor || 'Campus Seller',
   vendor: product.vendor || product.seller || 'Campus Seller',
   category: product.category || 'FnB',
@@ -79,7 +79,7 @@ const toSupabaseProduct = (product) => ({
 
 const fromSupabaseProduct = (product) => ({
   id: parseLocalId(product.local_id || product.id),
-  sellerId: product.seller_id,
+  sellerId: parseLocalId(product.seller_local_id || product.seller_id),
   seller: product.seller || product.vendor || 'Campus Seller',
   vendor: product.vendor || product.seller || 'Campus Seller',
   category: product.category,
@@ -95,8 +95,10 @@ const fromSupabaseProduct = (product) => ({
 
 const toSupabaseOrder = (order) => ({
   local_id: String(order.id),
-  buyer_id: Number.isSafeInteger(Number(order.buyerId)) ? Number(order.buyerId) : null,
-  product_id: Number.isSafeInteger(Number(order.productId)) ? Number(order.productId) : null,
+  buyer_id: null,
+  buyer_local_id: order.buyerId ? String(order.buyerId) : null,
+  product_id: null,
+  product_local_id: order.productId ? String(order.productId) : null,
   product_name: order.productName || '',
   vendor: order.vendor || 'Campus Vendor',
   image: normalizeStoredImage(order.image || ''),
@@ -113,8 +115,8 @@ const toSupabaseOrder = (order) => ({
 
 const fromSupabaseOrder = (order) => ({
   id: parseLocalId(order.local_id || order.id),
-  buyerId: parseLocalId(order.buyer_id),
-  productId: order.product_id ? parseLocalId(order.product_id) : null,
+  buyerId: parseLocalId(order.buyer_local_id || order.buyer_id),
+  productId: order.product_local_id ? parseLocalId(order.product_local_id) : order.product_id ? parseLocalId(order.product_id) : null,
   productName: order.product_name,
   vendor: order.vendor,
   image: order.image || '',
@@ -132,10 +134,11 @@ const fromSupabaseOrder = (order) => ({
 const toSupabaseMessage = (message) => ({
   local_id: String(message.id),
   conversation_id: message.conversationId,
-  // Keep product reference soft for chat because existing product IDs can be local string IDs.
+  buyer_id: null,
+  buyer_local_id: message.buyerId ? String(message.buyerId) : null,
   product_id: null,
+  product_local_id: message.productId ? String(message.productId) : null,
   product_name: message.productName || '',
-  buyer_id: Number.isSafeInteger(Number(message.buyerId)) ? Number(message.buyerId) : null,
   buyer_name: message.buyerName || '',
   seller_name: message.sellerName || 'Campus Seller',
   sender_role: message.senderRole,
@@ -146,9 +149,9 @@ const toSupabaseMessage = (message) => ({
 const fromSupabaseMessage = (message) => ({
   id: parseLocalId(message.local_id || message.id),
   conversationId: message.conversation_id,
-  productId: message.product_id ? parseLocalId(message.product_id) : null,
+  productId: message.product_local_id ? parseLocalId(message.product_local_id) : message.product_id ? parseLocalId(message.product_id) : null,
   productName: message.product_name,
-  buyerId: parseLocalId(message.buyer_id),
+  buyerId: parseLocalId(message.buyer_local_id || message.buyer_id),
   buyerName: message.buyer_name,
   sellerName: message.seller_name,
   senderRole: message.sender_role,
@@ -159,16 +162,23 @@ const fromSupabaseMessage = (message) => ({
 export const initializeSupabaseCache = async () => {
   if (!isSupabaseConfigured || !supabase) return false
 
-  isPullingFromSupabase = true
-
   try {
-    const [{ data: users }, { data: products }, { data: orders }, { data: messages }] =
-      await Promise.all([
-        supabase.from('users').select('*').order('created_at', { ascending: true }),
-        supabase.from('products').select('*').order('created_at', { ascending: false }),
-        supabase.from('orders').select('*').order('created_at', { ascending: false }),
-        supabase.from('chat_messages').select('*').order('created_at', { ascending: true }),
-      ])
+    const [usersResult, productsResult, ordersResult, messagesResult] = await Promise.all([
+      supabase.from('users').select('*').order('created_at', { ascending: true }),
+      supabase.from('products').select('*').order('created_at', { ascending: false }),
+      supabase.from('orders').select('*').order('created_at', { ascending: false }),
+      supabase.from('chat_messages').select('*').order('created_at', { ascending: true }),
+    ])
+
+    assertSupabaseOk(usersResult, 'Load users')
+    assertSupabaseOk(productsResult, 'Load products')
+    assertSupabaseOk(ordersResult, 'Load orders')
+    assertSupabaseOk(messagesResult, 'Load chat messages')
+
+    const { data: users } = usersResult
+    const { data: products } = productsResult
+    const { data: orders } = ordersResult
+    const { data: messages } = messagesResult
 
     if (users) saveState('upnm-users', users.map(fromSupabaseUser))
     if (products) saveState('upnm-seller-products', products.map(fromSupabaseProduct))
@@ -180,8 +190,6 @@ export const initializeSupabaseCache = async () => {
   } catch (error) {
     console.warn('Supabase cache initialization failed', error)
     return false
-  } finally {
-    isPullingFromSupabase = false
   }
 }
 
