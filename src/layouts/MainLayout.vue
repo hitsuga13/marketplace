@@ -19,6 +19,27 @@
         <q-space />
 
         <q-btn
+          unelevated
+          rounded
+          color="white"
+          text-color="primary"
+          icon="search"
+          label="Search"
+          class="gt-xs header-search-btn q-mr-sm"
+          @click="searchModal = true"
+        />
+        <q-btn
+          flat
+          round
+          dense
+          color="white"
+          icon="search"
+          aria-label="Open search"
+          class="lt-sm q-mr-xs"
+          @click="searchModal = true"
+        />
+
+        <q-btn
           v-if="showCartButton"
           unelevated
           rounded
