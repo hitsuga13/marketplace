@@ -1,7 +1,7 @@
 // Purpose: Background sync bridge between the existing local browser database and Supabase tables.
 import { supabase, isSupabaseConfigured } from 'src/supabase/client'
 import { normalizeStoredImage } from 'src/utils/assets'
-import { saveState } from './storage.js'
+import { loadState, saveState } from './storage.js'
 
 const pendingTimers = {}
 
@@ -16,6 +16,19 @@ const safeArray = (value) => (Array.isArray(value) ? value : [])
 const notifyLocalDataChanged = () => {
   window.dispatchEvent(new Event('upnm-supabase-cache-updated'))
   window.dispatchEvent(new Event('upnm-chat-updated'))
+}
+
+const syncCurrentUserFromUsers = (users) => {
+  const currentUser = loadState('upnm-current-user', null)
+  if (!currentUser) return
+
+  const latestUser = users.find(
+    (user) =>
+      String(user.id) === String(currentUser.id) ||
+      user.email?.toLowerCase() === currentUser.email?.toLowerCase(),
+  )
+
+  if (latestUser) saveState('upnm-current-user', latestUser)
 }
 
 const queueSync = (name, task) => {
@@ -180,7 +193,11 @@ export const initializeSupabaseCache = async () => {
     const { data: orders } = ordersResult
     const { data: messages } = messagesResult
 
-    if (users) saveState('upnm-users', users.map(fromSupabaseUser))
+    if (users) {
+      const mappedUsers = users.map(fromSupabaseUser)
+      saveState('upnm-users', mappedUsers)
+      syncCurrentUserFromUsers(mappedUsers)
+    }
     if (products) saveState('upnm-seller-products', products.map(fromSupabaseProduct))
     if (orders) saveState('upnm-buyer-orders', orders.map(fromSupabaseOrder))
     if (messages) saveState('upnm-chats', messages.map(fromSupabaseMessage))

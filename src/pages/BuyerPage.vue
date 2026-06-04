@@ -141,7 +141,7 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useQuasar } from 'quasar'
 import { normalizeStoredImage } from 'src/utils/assets'
 import {
@@ -202,7 +202,7 @@ const getStatusColor = (status) => {
 
 const updateBuyerOrderStatus = (orderId, status) => {
   updateOrderStatus(orderId, status)
-  buyerOrders.value = getBuyerOrders(currentUser.value?.id)
+  refreshBuyerData()
   $q.notify({
     color: status === 'Completed' ? 'positive' : 'grey-8',
     icon: status === 'Completed' ? 'check_circle' : 'cancel',
@@ -213,6 +213,19 @@ const updateBuyerOrderStatus = (orderId, status) => {
     position: 'top',
   })
 }
+
+const refreshBuyerData = () => {
+  currentUser.value = getCurrentUser()
+  buyerOrders.value = getBuyerOrders(currentUser.value?.id)
+}
+
+onMounted(() => {
+  window.addEventListener('upnm-supabase-cache-updated', refreshBuyerData)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('upnm-supabase-cache-updated', refreshBuyerData)
+})
 
 const formatDate = (dateString) =>
   new Intl.DateTimeFormat('en-MY', {

@@ -421,7 +421,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, onBeforeUnmount, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { getUploadSizeError } from 'src/utils/fileValidation'
@@ -453,6 +453,7 @@ const chatText = ref('')
 const paymentReceipt = ref('')
 const receiptFileName = ref('')
 const receiptInput = ref(null)
+const databaseVersion = ref(0)
 
 // This dynamically changes the tab text if a search is active!
 const tabOptions = computed(() => [
@@ -494,11 +495,15 @@ const selectedItem = ref({})
 const selectedVar = ref(null)
 const selectedAddons = ref([])
 const activeMessages = computed(() => {
+  databaseVersion.value
   const currentUser = getCurrentUser()
   if (!selectedItem.value?.id || !currentUser) return []
   return getProductMessages(getConversationId(selectedItem.value, currentUser))
 })
-const selectedSeller = computed(() => getSellerForProduct(selectedItem.value))
+const selectedSeller = computed(() => {
+  databaseVersion.value
+  return getSellerForProduct(selectedItem.value)
+})
 const sellerPaymentQr = computed(() => selectedSeller.value?.paymentQr || '')
 const getImageSrc = (src) => normalizeStoredImage(src)
 
@@ -517,6 +522,7 @@ const getStockLabel = (item) => {
 // Data Filter Calculations Engine
 // Data Filter Calculations Engine
 const filteredItems = computed(() => {
+  databaseVersion.value
   let baseItems = getProducts().filter((item) => item.active !== false)
 
   // Use activeSearch instead of route.query directly
@@ -532,6 +538,25 @@ const filteredItems = computed(() => {
 
   if (activeCategory.value === 'All') return baseItems
   return baseItems.filter((item) => item.category === activeCategory.value)
+})
+
+const refreshMarketplaceData = () => {
+  databaseVersion.value += 1
+
+  if (selectedItem.value?.id) {
+    const latestProduct = getProducts().find(
+      (product) => String(product.id) === String(selectedItem.value.id),
+    )
+    if (latestProduct) selectedItem.value = { ...selectedItem.value, ...latestProduct }
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('upnm-supabase-cache-updated', refreshMarketplaceData)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('upnm-supabase-cache-updated', refreshMarketplaceData)
 })
 
 const isPriceAvailable = computed(() => {

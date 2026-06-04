@@ -35,10 +35,10 @@ onMounted(async () => {
   await initializeSupabaseCache()
   isReady.value = true
 
-  // Keep live pages fresh when another user sends chats, posts products, or updates orders.
+  // Keep live pages fresh when another user edits profile data, posts products, or updates orders.
   supabaseRefreshTimer = window.setInterval(() => {
     initializeSupabaseCache()
-  }, 5000)
+  }, 3000)
 })
 
 onBeforeUnmount(() => {

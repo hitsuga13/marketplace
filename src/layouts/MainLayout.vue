@@ -521,6 +521,7 @@ export default defineComponent({
     const groupReceiptInputs = ref({})
     const currentUser = ref(getCurrentUser())
     const chatReadState = ref(loadState('upnm-chat-read-state', {}))
+    const databaseVersion = ref(0)
     const isMenuPage = computed(() =>
       ['/', '/main', '/page1', '/page2', '/page3'].includes(route.path),
     )
@@ -531,6 +532,7 @@ export default defineComponent({
     const refreshSession = () => {
       currentUser.value = getCurrentUser()
       chatReadState.value = loadState('upnm-chat-read-state', {})
+      databaseVersion.value += 1
     }
 
     const handleExternalCartOpen = () => {
@@ -549,6 +551,7 @@ export default defineComponent({
     onMounted(() => {
       removeRouterHook = router.afterEach(refreshSession)
       window.addEventListener('storage', refreshSession)
+      window.addEventListener('upnm-supabase-cache-updated', refreshSession)
       window.addEventListener('upnm-chat-updated', refreshSession)
       window.addEventListener('upnm-chat-read-state-updated', refreshSession)
       window.addEventListener('upnm-open-cart', handleExternalCartOpen)
@@ -559,6 +562,7 @@ export default defineComponent({
     onBeforeUnmount(() => {
       if (removeRouterHook) removeRouterHook()
       window.removeEventListener('storage', refreshSession)
+      window.removeEventListener('upnm-supabase-cache-updated', refreshSession)
       window.removeEventListener('upnm-chat-updated', refreshSession)
       window.removeEventListener('upnm-chat-read-state-updated', refreshSession)
       window.removeEventListener('upnm-open-cart', handleExternalCartOpen)
@@ -566,6 +570,7 @@ export default defineComponent({
     })
 
     const topResults = computed(() => {
+      databaseVersion.value
       if (!searchQuery.value) return []
 
       const query = searchQuery.value.toLowerCase()

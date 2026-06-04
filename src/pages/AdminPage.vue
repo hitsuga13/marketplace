@@ -286,7 +286,7 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useQuasar } from 'quasar'
 import { normalizeStoredImage } from 'src/utils/assets'
 import {
@@ -333,6 +333,12 @@ const totalSales = computed(() =>
 
 const saveUsers = () => {
   saveStoredUsers(users.value)
+}
+
+const refreshAdminData = () => {
+  users.value = getUsers()
+  sellerProducts.value = getSellerProducts()
+  orders.value = getOrders()
 }
 
 const saveProducts = () => {
@@ -579,4 +585,12 @@ const updateAdminOrderStatus = (orderId, status) => {
     position: 'top',
   })
 }
+
+onMounted(() => {
+  window.addEventListener('upnm-supabase-cache-updated', refreshAdminData)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('upnm-supabase-cache-updated', refreshAdminData)
+})
 </script>

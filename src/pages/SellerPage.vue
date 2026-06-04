@@ -444,7 +444,7 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useQuasar } from 'quasar'
 import ImageCropDialog from 'src/components/ImageCropDialog.vue'
 import { getUploadSizeError } from 'src/utils/fileValidation'
@@ -721,7 +721,7 @@ const isOwnChatMessage = (message) => message.senderRole === currentUser.value?.
 
 const updateOrderStatus = (orderId, status) => {
   updateStoredOrderStatus(orderId, status)
-  buyerOrders.value = getSellerOrders(currentUser.value?.name)
+  refreshSellerData()
   const statusFeedback = {
     'Seller Confirmed': {
       color: 'positive',
@@ -751,6 +751,20 @@ const updateOrderStatus = (orderId, status) => {
     message: feedback.message,
     position: 'top',
   })
+}
+
+const refreshSellerData = () => {
+  const activeConversationId = activeConversation.value?.conversationId
+
+  currentUser.value = getCurrentUser()
+  sellerProducts.value = getSellerProducts()
+  buyerOrders.value = getSellerOrders(currentUser.value?.name)
+
+  if (activeConversationId) {
+    activeConversation.value = getConversationSummaries(currentUser.value?.name || '').find(
+      (item) => item.conversationId === activeConversationId,
+    ) || activeConversation.value
+  }
 }
 
 const viewReceipt = (order) => {
@@ -784,4 +798,12 @@ const sendReply = () => {
   )
   replyText.value = ''
 }
+
+onMounted(() => {
+  window.addEventListener('upnm-supabase-cache-updated', refreshSellerData)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('upnm-supabase-cache-updated', refreshSellerData)
+})
 </script>
