@@ -1518,6 +1518,11 @@ body {
   font-weight: 800;
 }
 
+.checkout-pay-btn--disabled {
+  opacity: 0.58;
+  filter: grayscale(0.3);
+}
+
 .payment-qr-box {
   margin-left: auto;
   margin-right: auto;

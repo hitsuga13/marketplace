@@ -494,7 +494,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import ImageCropDialog from 'src/components/ImageCropDialog.vue'
@@ -573,31 +573,6 @@ const profileForm = ref({
   paymentQr: currentUser.value?.paymentQr || '',
 })
 
-const syncProfileFormFromCurrentUser = () => {
-  if (!currentUser.value || isEditingProfile.value) return
-
-  profileForm.value = {
-    name: currentUser.value.name || '',
-    phone: currentUser.value.phone || '',
-    email: currentUser.value.email || '',
-    avatar: currentUser.value.avatar || '',
-    paymentQr: currentUser.value.paymentQr || '',
-  }
-}
-
-const refreshAccountData = () => {
-  users.value = getUsers()
-  currentUser.value = getCurrentUser()
-  syncProfileFormFromCurrentUser()
-}
-
-onMounted(() => {
-  window.addEventListener('upnm-supabase-cache-updated', refreshAccountData)
-})
-
-onBeforeUnmount(() => {
-  window.removeEventListener('upnm-supabase-cache-updated', refreshAccountData)
-})
 
 const firstName = computed(() => currentUser.value?.name?.split(' ')[0] || 'User')
 

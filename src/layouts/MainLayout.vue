@@ -397,7 +397,7 @@
       </q-card>
     </q-dialog>
 
-    <q-dialog v-model="checkoutDialog">
+    <q-dialog v-model="checkoutDialog" @hide="resetCheckoutState">
       <q-card class="payment-qr-card cart-checkout-card multi-seller-checkout-card">
         <q-card-section>
           <div class="multi-seller-checkout-header">
@@ -407,14 +407,14 @@
             <div>
               <div class="text-h6 text-weight-bold">Pay Seller via QR</div>
               <div class="text-grey-7">
-                {{ checkoutGroups.length }} seller(s), {{ selectedCartCount }} item(s) selected
+                {{ checkoutGroups.length }} seller(s), {{ checkoutSelectedCount }} item(s) selected
               </div>
             </div>
           </div>
 
           <div class="multi-seller-checkout-total q-mt-md">
             <span>Total selected payment</span>
-            <strong>RM {{ cartSubtotal.toFixed(2) }}</strong>
+            <strong>RM {{ checkoutSubtotal.toFixed(2) }}</strong>
           </div>
 
           <div class="multi-seller-checkout-list q-mt-md">
@@ -496,8 +496,9 @@
             color="primary"
             icon="check_circle"
             label="I have paid"
-            :disable="uploadedCheckoutReceiptCount < checkoutGroups.length"
-            @click="confirmCartPayment"
+            :class="{ 'checkout-pay-btn--disabled': !cartReceiptsReady }"
+            :aria-disabled="!cartReceiptsReady"
+            @click="handleCartPaymentClick"
           />
         </q-card-actions>
       </q-card>
@@ -506,7 +507,7 @@
 </template>
 
 <script>
-import { defineComponent, ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { defineComponent, ref, computed, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { getUploadSizeError } from 'src/utils/fileValidation'
@@ -540,6 +541,7 @@ export default defineComponent({
     const searchQuery = ref('')
     const groupReceipts = ref({})
     const groupReceiptInputs = ref({})
+    const checkoutItemsSnapshot = ref([])
     const currentUser = ref(getCurrentUser())
     const chatReadState = ref(loadState('upnm-chat-read-state', {}))
     const databaseVersion = ref(0)
@@ -565,6 +567,16 @@ export default defineComponent({
       refreshSession()
       cartPanelOpen.value = false
       openCheckout()
+    }
+
+    const navigateAfterDialogsClose = async (path) => {
+      searchModal.value = false
+      cartPanelOpen.value = false
+      checkoutDialog.value = false
+      await nextTick()
+      window.setTimeout(() => {
+        router.push(path)
+      }, 180)
     }
 
     let removeRouterHook
@@ -639,6 +651,18 @@ export default defineComponent({
     const cartSubtotal = computed(() =>
       selectedCartItems.value.reduce((total, item) => total + Number(item.price || 0) * item.quantity, 0),
     )
+    const checkoutItems = computed(() =>
+      checkoutItemsSnapshot.value.length > 0 ? checkoutItemsSnapshot.value : selectedCartItems.value,
+    )
+    const checkoutSelectedCount = computed(() =>
+      checkoutItems.value.reduce((total, item) => total + Number(item.quantity || 1), 0),
+    )
+    const checkoutSubtotal = computed(() =>
+      checkoutItems.value.reduce(
+        (total, item) => total + Number(item.price || 0) * Number(item.quantity || 1),
+        0,
+      ),
+    )
     const allCartSelected = computed({
       get: () => cart.value.length > 0 && cart.value.every((item) => item.selected !== false),
       set: (checked) => {
@@ -653,7 +677,7 @@ export default defineComponent({
     const checkoutGroups = computed(() => {
       const groups = new Map()
 
-      selectedCartItems.value.forEach((item) => {
+      checkoutItems.value.forEach((item) => {
         const sellerName = item.vendor || item.seller || 'Campus Seller'
         const sellerKey = getSellerReceiptKey(sellerName)
         const seller = getSellerForProduct(item)
@@ -751,10 +775,10 @@ export default defineComponent({
       item.quantity -= 1
     }
 
-    const openCheckout = () => {
+    const openCheckout = async () => {
       if (currentUser.value?.role !== 'buyer') {
         cartPanelOpen.value = false
-        router.push('/page4')
+        await navigateAfterDialogsClose('/page4')
         return
       }
 
@@ -762,7 +786,13 @@ export default defineComponent({
 
       groupReceipts.value = {}
       groupReceiptInputs.value = {}
+      checkoutItemsSnapshot.value = selectedCartItems.value.map((item) => ({
+        ...item,
+        selectedVar: item.selectedVar ? { ...item.selectedVar } : null,
+        selectedAddons: item.selectedAddons?.map((addon) => ({ ...addon })) || [],
+      }))
       cartPanelOpen.value = false
+      await nextTick()
       checkoutDialog.value = true
     }
 
@@ -818,21 +848,38 @@ export default defineComponent({
     const uploadedCheckoutReceiptCount = computed(
       () => checkoutGroups.value.filter((group) => getGroupReceipt(group)?.receipt).length,
     )
+    const cartReceiptsReady = computed(
+      () =>
+        checkoutGroups.value.length > 0 &&
+        uploadedCheckoutReceiptCount.value === checkoutGroups.value.length,
+    )
+
+    const notifyMissingCheckoutReceipt = () => {
+      const missingSeller = checkoutGroups.value.find((group) => !getGroupReceipt(group)?.receipt)
+      $q.notify({
+        type: 'negative',
+        message: `Please upload receipt for ${missingSeller?.sellerName || 'every seller'} first.`,
+        position: 'top',
+      })
+    }
+
+    const resetCheckoutState = () => {
+      if (checkoutDialog.value) return
+
+      groupReceipts.value = {}
+      groupReceiptInputs.value = {}
+      checkoutItemsSnapshot.value = []
+    }
 
     const confirmCartPayment = () => {
       if (!currentUser.value) return
-      if (uploadedCheckoutReceiptCount.value < checkoutGroups.value.length) {
-        const missingSeller = checkoutGroups.value.find((group) => !getGroupReceipt(group)?.receipt)
-        $q.notify({
-          type: 'negative',
-          message: `Please upload receipt for ${missingSeller?.sellerName || 'every seller'} first.`,
-          position: 'top',
-        })
+      if (!cartReceiptsReady.value) {
+        notifyMissingCheckoutReceipt()
         return
       }
       if (!validateSelectedCartStock()) return
 
-      createOrders(selectedCartItems.value.map((item) => ({
+      createOrders(checkoutItems.value.map((item) => ({
         ...(() => {
           const sellerName = item.vendor || item.seller || 'Campus Vendor'
           const sellerReceipt =
@@ -852,7 +899,7 @@ export default defineComponent({
         selectedVariation: item.selectedVar?.label || '',
         selectedAddons: item.selectedAddons?.map((addon) => ({ ...addon })) || [],
       })))
-      decreaseProductsStock(selectedCartItems.value)
+      decreaseProductsStock(checkoutItems.value)
 
       clearSelectedCartItems()
       checkoutDialog.value = false
@@ -864,17 +911,25 @@ export default defineComponent({
         message: 'Receipt uploaded. Order is waiting for seller confirmation.',
         position: 'top',
       })
-      router.push('/buyer-dashboard')
+      navigateAfterDialogsClose('/buyer-dashboard')
     }
 
-    const goToCart = () => {
-      cartPanelOpen.value = false
-      if (currentUser.value?.role === 'buyer') {
-        router.push('/buyer-dashboard')
+    const handleCartPaymentClick = () => {
+      if (!cartReceiptsReady.value) {
+        notifyMissingCheckoutReceipt()
         return
       }
 
-      router.push('/page4')
+      confirmCartPayment()
+    }
+
+    const goToCart = async () => {
+      if (currentUser.value?.role === 'buyer') {
+        await navigateAfterDialogsClose('/buyer-dashboard')
+        return
+      }
+
+      await navigateAfterDialogsClose('/page4')
     }
 
     return {
@@ -894,9 +949,12 @@ export default defineComponent({
       selectedCartCount,
       allCartSelected,
       cartSubtotal,
+      checkoutSelectedCount,
+      checkoutSubtotal,
       checkoutGroups,
       allCheckoutReceiptsUploaded,
       uploadedCheckoutReceiptCount,
+      cartReceiptsReady,
       isMenuPage,
       topResults,
       getPriceDisplay,
@@ -912,7 +970,9 @@ export default defineComponent({
       setGroupReceiptInput,
       getGroupReceipt,
       handleGroupReceiptUpload,
+      resetCheckoutState,
       confirmCartPayment,
+      handleCartPaymentClick,
       goToCart,
     }
   },
