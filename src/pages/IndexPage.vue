@@ -159,7 +159,7 @@
             />
           </div>
 
-          <div class="col-6 q-pa-lg column no-wrap shadow-2">
+          <div class="col-6 q-pa-lg column no-wrap shadow-2 detail-info-panel">
             <div class="q-mb-md">
               <div class="text-overline text-primary">
                 {{ getCategoryLabel(selectedItem.category) }}
@@ -167,7 +167,7 @@
               <div class="text-h4 text-bold">{{ selectedItem.name }}</div>
             </div>
 
-            <q-scroll-area class="col q-pr-md">
+            <div class="col q-pr-md detail-scroll-area">
               <div class="detail-seller-row q-mb-md">
                 <q-avatar size="44px" class="detail-seller-avatar">
                   <img v-if="selectedSeller?.avatar" :src="selectedSeller.avatar" alt="Seller profile" />
@@ -241,9 +241,9 @@
                   </div>
                 </div>
               </div>
-            </q-scroll-area>
+            </div>
 
-            <div class="q-mt-md">
+            <div class="q-mt-md detail-actions">
               <div
                 class="price-section q-py-md text-center bg-grey-1 rounded-borders q-mb-md"
                 style="
@@ -877,6 +877,10 @@ const sendChat = () => {
   line-height: 1.5;
   white-space: pre-line;
 }
+.detail-scroll-area {
+  min-height: 0;
+  overflow-y: auto;
+}
 .variation-scroll-container {
   max-height: 85px;
   overflow-y: auto;
@@ -937,7 +941,7 @@ const sendChat = () => {
   .detail-modal-card {
     width: calc(100vw - 18px);
     max-width: calc(100vw - 18px);
-    height: min(92vh, 760px);
+    height: min(94vh, 760px);
     overflow-y: auto;
   }
 
@@ -954,8 +958,24 @@ const sendChat = () => {
     flex: 0 0 auto;
   }
 
+  .detail-info-panel {
+    padding: 18px !important;
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 auto;
+    min-height: 0;
+  }
+
+  .detail-scroll-area {
+    flex: 0 0 auto !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding-right: 0 !important;
+  }
+
   .detail-image {
-    height: 260px;
+    height: 190px;
   }
 
   .detail-modal-card .text-h4 {
@@ -964,7 +984,46 @@ const sendChat = () => {
   }
 
   .detail-modal-card .text-h3 {
-    font-size: 2rem;
+    font-size: 1.55rem;
+  }
+
+  .detail-seller-row {
+    margin-bottom: 8px !important;
+  }
+
+  .description-box {
+    max-height: 70px;
+    margin-bottom: 8px !important;
+    font-size: 0.9rem;
+  }
+
+  .variation-scroll-container {
+    max-height: 96px;
+    padding: 6px;
+  }
+
+  .variation-scroll-container :deep(.q-btn) {
+    min-height: 30px;
+    font-size: 0.72rem;
+    padding: 4px 9px;
+  }
+
+  .price-section {
+    min-height: 78px !important;
+    padding-top: 10px !important;
+    padding-bottom: 10px !important;
+    margin-bottom: 10px !important;
+  }
+
+  .detail-actions {
+    margin-top: 8px !important;
+  }
+
+  .detail-actions .q-btn {
+    min-height: 44px;
+    padding-left: 8px;
+    padding-right: 8px;
+    font-size: 0.82rem;
   }
 }
 </style>
