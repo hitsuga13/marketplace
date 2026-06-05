@@ -89,3 +89,4 @@ values
   ('Campus Kitchen', 'seller@upnm.test', '', '123456', 'seller', 'SELLER-2026', true),
   ('Admin User', 'admin@upnm.test', '', '123456', 'admin', 'ADMIN-2026', true)
 on conflict (email) do nothing;
+  
