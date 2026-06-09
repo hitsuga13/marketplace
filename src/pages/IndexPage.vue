@@ -129,7 +129,9 @@
                 </div>
 
                 <div class="price text-primary text-bold q-mt-sm">
-                  <span v-if="item.variations?.length > 0">Options Available</span>
+                  <span v-if="item.variations?.length > 0"
+                    >From RM {{ Number(item.price || 0).toFixed(2) }}</span
+                  >
                   <span v-else-if="item.price !== undefined"
                     >RM {{ Number(item.price).toFixed(2) }}</span
                   >
@@ -202,7 +204,7 @@
               <div v-if="selectedItem.variations?.length > 0" class="q-mb-md">
                 <div class="text-subtitle2 q-mb-xs text-bold text-grey-9">Variation</div>
                 <div class="text-caption text-grey-7 q-mb-sm">
-                  The final price depends on the variation you choose.
+                  Variation price is added on top of the base product price.
                 </div>
                 <div class="variation-scroll-container">
                   <div class="row q-gutter-xs">
@@ -577,11 +579,14 @@ const isPriceAvailable = computed(() => {
 const finalPrice = computed(() => {
   if (!isPriceAvailable.value) return 0
   let base =
-    selectedVar.value && selectedVar.value.price !== undefined
-      ? selectedVar.value.price
-      : selectedItem.value.price || 0
+    selectedItem.value.price !== undefined
+      ? Number(selectedItem.value.price || 0)
+      : 0
+  if (selectedVar.value && selectedVar.value.price !== undefined) {
+    base += Number(selectedVar.value.price || 0)
+  }
   selectedAddons.value.forEach((addon) => {
-    base += addon.price
+    base += Number(addon.price || 0)
   })
   return base
 })

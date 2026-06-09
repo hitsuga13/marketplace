@@ -258,7 +258,7 @@
             class="q-mt-md"
           />
           <div class="text-caption text-grey-7 q-mt-xs">
-            This is the base price. If variations are added, buyer checkout price depends on the selected variation.
+            This is the base price. Variation and add-on prices are added on top of this price.
           </div>
 
           <div class="seller-addon-editor q-mt-md">
@@ -266,7 +266,7 @@
               <div>
                 <div class="text-subtitle2 text-weight-bold">Variation Options</div>
                 <div class="text-caption text-grey-7">
-                  Example: Carbonara or Bolognese. Each variation can have a different price.
+                  Example: Carbonara or Bolognese. Add an extra price only if the option costs more.
                 </div>
               </div>
               <div class="seller-addon-editor__buttons">
@@ -295,7 +295,7 @@
                   outlined
                   dense
                   type="number"
-                  label="Price (RM)"
+                  label="Extra price (RM)"
                   placeholder="0.00"
                 />
                 <q-btn
