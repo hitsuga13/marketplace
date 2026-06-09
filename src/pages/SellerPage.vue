@@ -456,7 +456,9 @@ import {
   getProductStock,
   getSellerOrders,
   getSellerProducts,
+  fetchOrderReceipt,
   saveSellerProducts,
+  subscribeToChatMessages,
   updateOrderStatus as updateStoredOrderStatus,
 } from 'src/database'
 
@@ -476,6 +478,7 @@ const productCropSource = ref('')
 const editingProductId = ref(null)
 const buyerOrders = ref(getSellerOrders(currentUser.value?.name))
 const getImageSrc = (src) => normalizeStoredImage(src)
+let unsubscribeChatRealtime = null
 
 const categoryOptions = [
   { label: 'Food & Beverages', value: 'FnB' },
@@ -767,9 +770,19 @@ const refreshSellerData = () => {
   }
 }
 
-const viewReceipt = (order) => {
+const viewReceipt = async (order) => {
   selectedReceiptOrder.value = order
   receiptDialog.value = true
+
+  if (order.receipt) return
+
+  const receiptData = await fetchOrderReceipt(order.id)
+  if (receiptData) {
+    selectedReceiptOrder.value = {
+      ...order,
+      ...receiptData,
+    }
+  }
 }
 
 const sendReply = () => {
@@ -800,10 +813,14 @@ const sendReply = () => {
 }
 
 onMounted(() => {
+  unsubscribeChatRealtime = subscribeToChatMessages()
   window.addEventListener('upnm-supabase-cache-updated', refreshSellerData)
+  window.addEventListener('upnm-chat-updated', refreshSellerData)
 })
 
 onBeforeUnmount(() => {
+  if (unsubscribeChatRealtime) unsubscribeChatRealtime()
   window.removeEventListener('upnm-supabase-cache-updated', refreshSellerData)
+  window.removeEventListener('upnm-chat-updated', refreshSellerData)
 })
 </script>

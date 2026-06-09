@@ -293,6 +293,7 @@ import {
   getOrders,
   getSellerProducts,
   getUsers,
+  fetchOrderReceipt,
   saveSellerProducts,
   saveUsers as saveStoredUsers,
   updateOrderStatus,
@@ -369,9 +370,19 @@ const getOrderOptionText = (order) => {
   return parts.join(' | ')
 }
 
-const viewReceipt = (order) => {
+const viewReceipt = async (order) => {
   selectedReceiptOrder.value = order
   receiptDialog.value = true
+
+  if (order.receipt) return
+
+  const receiptData = await fetchOrderReceipt(order.id)
+  if (receiptData) {
+    selectedReceiptOrder.value = {
+      ...order,
+      ...receiptData,
+    }
+  }
 }
 
 const formatDateTime = (dateString) => {

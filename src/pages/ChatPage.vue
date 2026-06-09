@@ -134,6 +134,7 @@ import {
   getCurrentUser,
   loadState,
   saveState,
+  subscribeToChatMessages,
 } from 'src/database'
 
 const currentUser = ref(getCurrentUser())
@@ -141,6 +142,7 @@ const searchText = ref('')
 const activeConversation = ref(null)
 const messageText = ref('')
 const chatReadState = ref(loadState('upnm-chat-read-state', {}))
+let unsubscribeChatRealtime = null
 
 const conversations = computed(() => {
   if (!currentUser.value) return []
@@ -262,10 +264,12 @@ const sendMessage = () => {
 }
 
 onMounted(() => {
+  unsubscribeChatRealtime = subscribeToChatMessages()
   window.addEventListener('upnm-chat-updated', refreshActiveConversation)
 })
 
 onBeforeUnmount(() => {
+  if (unsubscribeChatRealtime) unsubscribeChatRealtime()
   window.removeEventListener('upnm-chat-updated', refreshActiveConversation)
 })
 </script>

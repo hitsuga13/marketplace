@@ -1,9 +1,12 @@
 // Purpose: Local chat store for buyer/seller conversations, messages, unread counts, and read-state helpers.
 import { ref } from 'vue'
+import { supabase, isSupabaseConfigured } from 'src/supabase/client'
 import { loadState, saveState } from './storage.js'
 import { syncChatsToSupabase } from './supabaseSync.js'
 
 export const chats = ref(loadState('upnm-chats', []))
+let chatRealtimeChannel = null
+let chatRealtimeSubscribers = 0
 
 if (typeof window !== 'undefined') {
   window.addEventListener('upnm-supabase-cache-updated', () => {
@@ -14,6 +17,82 @@ if (typeof window !== 'undefined') {
 const saveChats = () => {
   saveState('upnm-chats', chats.value)
   syncChatsToSupabase(chats.value)
+}
+
+const parseLocalId = (value) => {
+  const text = String(value ?? '')
+  const number = Number(text)
+  return text && Number.isSafeInteger(number) && String(number) === text ? number : text
+}
+
+const fromSupabaseMessage = (message) => ({
+  id: parseLocalId(message.local_id || message.id),
+  conversationId: message.conversation_id,
+  productId: message.product_local_id
+    ? parseLocalId(message.product_local_id)
+    : message.product_id
+      ? parseLocalId(message.product_id)
+      : null,
+  productName: message.product_name,
+  buyerId: parseLocalId(message.buyer_local_id || message.buyer_id),
+  buyerName: message.buyer_name,
+  sellerName: message.seller_name,
+  senderRole: message.sender_role,
+  text: message.message,
+  createdAt: message.created_at,
+})
+
+const notifyChatChanged = () => {
+  window.dispatchEvent(new Event('upnm-chat-updated'))
+}
+
+const mergeIncomingMessage = (message) => {
+  const mappedMessage = fromSupabaseMessage(message)
+  const alreadyExists = chats.value.some(
+    (item) =>
+      String(item.id) === String(mappedMessage.id) ||
+      (item.conversationId === mappedMessage.conversationId &&
+        item.createdAt === mappedMessage.createdAt &&
+        item.senderRole === mappedMessage.senderRole &&
+        item.text === mappedMessage.text),
+  )
+
+  if (alreadyExists) return
+
+  chats.value = [...chats.value, mappedMessage]
+  saveState('upnm-chats', chats.value)
+  notifyChatChanged()
+}
+
+export const subscribeToChatMessages = () => {
+  if (!isSupabaseConfigured || !supabase || typeof window === 'undefined') return () => {}
+
+  chatRealtimeSubscribers += 1
+
+  if (!chatRealtimeChannel) {
+    chatRealtimeChannel = supabase
+      .channel('upnm-chat-messages')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'chat_messages',
+        },
+        (payload) => {
+          if (payload.new) mergeIncomingMessage(payload.new)
+        },
+      )
+      .subscribe()
+  }
+
+  return () => {
+    chatRealtimeSubscribers = Math.max(0, chatRealtimeSubscribers - 1)
+    if (chatRealtimeSubscribers > 0 || !chatRealtimeChannel) return
+
+    supabase.removeChannel(chatRealtimeChannel)
+    chatRealtimeChannel = null
+  }
 }
 
 export const getConversationId = (product, buyer) => {
@@ -43,7 +122,7 @@ export const addMessage = ({ conversationId, product, buyer, senderRole, text })
 
   chats.value.push(message)
   saveChats()
-  window.dispatchEvent(new Event('upnm-chat-updated'))
+  notifyChatChanged()
   return message
 }
 

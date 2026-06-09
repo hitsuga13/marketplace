@@ -4,6 +4,25 @@ import { normalizeStoredImage } from 'src/utils/assets'
 import { loadState, saveState } from './storage.js'
 
 const pendingTimers = {}
+const ORDER_LIST_COLUMNS = [
+  'id',
+  'local_id',
+  'buyer_id',
+  'buyer_local_id',
+  'product_id',
+  'product_local_id',
+  'product_name',
+  'vendor',
+  'image',
+  'quantity',
+  'total',
+  'selected_variation',
+  'selected_addons',
+  'receipt_file_name',
+  'status',
+  'created_at',
+  'updated_at',
+].join(',')
 
 const parseLocalId = (value) => {
   const text = String(value ?? '')
@@ -106,25 +125,32 @@ const fromSupabaseProduct = (product) => ({
   active: product.active !== false,
 })
 
-const toSupabaseOrder = (order) => ({
-  local_id: String(order.id),
-  buyer_id: null,
-  buyer_local_id: order.buyerId ? String(order.buyerId) : null,
-  product_id: null,
-  product_local_id: order.productId ? String(order.productId) : null,
-  product_name: order.productName || '',
-  vendor: order.vendor || 'Campus Vendor',
-  image: normalizeStoredImage(order.image || ''),
-  quantity: Number(order.quantity || 1),
-  total: Number(order.total || 0),
-  selected_variation: order.selectedVariation || '',
-  selected_addons: safeArray(order.selectedAddons),
-  receipt: order.receipt || '',
-  receipt_file_name: order.receiptFileName || '',
-  status: order.status || 'In Progress',
-  created_at: order.createdAt || new Date().toISOString(),
-  updated_at: order.updatedAt || order.reviewedAt || new Date().toISOString(),
-})
+const toSupabaseOrder = (order) => {
+  const row = {
+    local_id: String(order.id),
+    buyer_id: null,
+    buyer_local_id: order.buyerId ? String(order.buyerId) : null,
+    product_id: null,
+    product_local_id: order.productId ? String(order.productId) : null,
+    product_name: order.productName || '',
+    vendor: order.vendor || 'Campus Vendor',
+    image: normalizeStoredImage(order.image || ''),
+    quantity: Number(order.quantity || 1),
+    total: Number(order.total || 0),
+    selected_variation: order.selectedVariation || '',
+    selected_addons: safeArray(order.selectedAddons),
+    receipt_file_name: order.receiptFileName || '',
+    status: order.status || 'In Progress',
+    created_at: order.createdAt || new Date().toISOString(),
+    updated_at: order.updatedAt || order.reviewedAt || new Date().toISOString(),
+  }
+
+  if (Object.prototype.hasOwnProperty.call(order, 'receipt')) {
+    row.receipt = order.receipt || ''
+  }
+
+  return row
+}
 
 const fromSupabaseOrder = (order) => ({
   id: parseLocalId(order.local_id || order.id),
@@ -137,7 +163,7 @@ const fromSupabaseOrder = (order) => ({
   total: Number(order.total || 0),
   selectedVariation: order.selected_variation || '',
   selectedAddons: safeArray(order.selected_addons),
-  receipt: order.receipt || '',
+  ...(Object.prototype.hasOwnProperty.call(order, 'receipt') ? { receipt: order.receipt || '' } : {}),
   receiptFileName: order.receipt_file_name || '',
   status: order.status,
   createdAt: order.created_at,
@@ -179,7 +205,7 @@ export const initializeSupabaseCache = async () => {
     const [usersResult, productsResult, ordersResult, messagesResult] = await Promise.all([
       supabase.from('users').select('*').order('created_at', { ascending: true }),
       supabase.from('products').select('*').order('created_at', { ascending: false }),
-      supabase.from('orders').select('*').order('created_at', { ascending: false }),
+      supabase.from('orders').select(ORDER_LIST_COLUMNS).order('created_at', { ascending: false }),
       supabase.from('chat_messages').select('*').order('created_at', { ascending: true }),
     ])
 
@@ -207,6 +233,36 @@ export const initializeSupabaseCache = async () => {
   } catch (error) {
     console.warn('Supabase cache initialization failed', error)
     return false
+  }
+}
+
+export const fetchOrderReceipt = async (orderId) => {
+  if (!isSupabaseConfigured || !supabase || !orderId) return null
+
+  try {
+    const result = await supabase
+      .from('orders')
+      .select('local_id, receipt, receipt_file_name')
+      .eq('local_id', String(orderId))
+      .maybeSingle()
+
+    assertSupabaseOk(result, 'Load order receipt')
+    if (!result.data) return null
+
+    const receiptData = {
+      receipt: result.data.receipt || '',
+      receiptFileName: result.data.receipt_file_name || '',
+    }
+    const orders = loadState('upnm-buyer-orders', [])
+    const updatedOrders = orders.map((order) =>
+      String(order.id) === String(orderId) ? { ...order, ...receiptData } : order,
+    )
+    saveState('upnm-buyer-orders', updatedOrders)
+
+    return receiptData
+  } catch (error) {
+    console.warn('Supabase receipt load failed', error)
+    return null
   }
 }
 

@@ -443,6 +443,7 @@ import {
   getSellerForProduct,
   isProductOutOfStock,
   decreaseProductStock,
+  subscribeToChatMessages,
 } from 'src/database'
 
 const $q = useQuasar()
@@ -459,6 +460,7 @@ const paymentReceipt = ref('')
 const receiptFileName = ref('')
 const receiptInput = ref(null)
 const databaseVersion = ref(0)
+let unsubscribeProductChatRealtime = null
 
 // This dynamically changes the tab text if a search is active!
 const tabOptions = computed(() => [
@@ -561,6 +563,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  if (unsubscribeProductChatRealtime) unsubscribeProductChatRealtime()
   window.removeEventListener('upnm-supabase-cache-updated', refreshMarketplaceData)
 })
 
@@ -629,6 +632,18 @@ watch(detailsModal, (isOpen) => {
       url.searchParams.delete('openProduct')
       globalThis.history.replaceState({}, '', url)
     }
+  }
+})
+
+watch(chatDialog, (isOpen) => {
+  if (isOpen && !unsubscribeProductChatRealtime) {
+    unsubscribeProductChatRealtime = subscribeToChatMessages()
+    return
+  }
+
+  if (!isOpen && unsubscribeProductChatRealtime) {
+    unsubscribeProductChatRealtime()
+    unsubscribeProductChatRealtime = null
   }
 })
 
