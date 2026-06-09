@@ -10,7 +10,8 @@ import { initializeSupabaseCache } from 'src/database'
 import { getPublicAsset } from 'src/utils/assets'
 
 const isReady = ref(false)
-let supabaseRefreshTimer = null
+let lastSupabaseRefreshAt = 0
+const SUPABASE_REFRESH_COOLDOWN_MS = 60000
 
 if (typeof document !== 'undefined') {
   document.documentElement.style.setProperty(
@@ -31,18 +32,31 @@ if (typeof document !== 'undefined') {
   )
 }
 
-onMounted(async () => {
+const refreshSupabaseCache = async (force = false) => {
+  const now = Date.now()
+  if (!force && now - lastSupabaseRefreshAt < SUPABASE_REFRESH_COOLDOWN_MS) return
+
+  lastSupabaseRefreshAt = now
   await initializeSupabaseCache()
+}
+
+const refreshWhenVisible = () => {
+  if (document.visibilityState === 'visible') refreshSupabaseCache()
+}
+
+onMounted(async () => {
+  await refreshSupabaseCache(true)
   isReady.value = true
 
-  // Keep live pages fresh when another user edits profile data, posts products, or updates orders.
-  supabaseRefreshTimer = window.setInterval(() => {
-    initializeSupabaseCache()
-  }, 3000)
+  window.addEventListener('online', refreshSupabaseCache)
+  window.addEventListener('focus', refreshSupabaseCache)
+  document.addEventListener('visibilitychange', refreshWhenVisible)
 })
 
 onBeforeUnmount(() => {
-  if (supabaseRefreshTimer) window.clearInterval(supabaseRefreshTimer)
+  window.removeEventListener('online', refreshSupabaseCache)
+  window.removeEventListener('focus', refreshSupabaseCache)
+  document.removeEventListener('visibilitychange', refreshWhenVisible)
 })
 </script>
 
