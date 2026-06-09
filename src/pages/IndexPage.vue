@@ -44,8 +44,13 @@
 
         <div class="row q-col-gutter-lg">
           <div v-for="category in categories" :key="category.title" class="col-12 col-md-4">
-            <q-card class="category-card" flat bordered>
-              <q-img :src="getImageSrc(category.image)" :alt="category.title" ratio="4/3" />
+              <q-card class="category-card" flat bordered>
+              <q-img
+                :src="getImageSrc(category.image)"
+                :alt="category.title"
+                ratio="4/3"
+                :img-attrs="{ loading: 'lazy', decoding: 'async' }"
+              />
               <q-card-section>
                 <div class="row items-center no-wrap">
                   <q-icon :name="category.icon" color="primary" size="28px" class="q-mr-sm" />
@@ -467,7 +472,7 @@ const categories = [
   {
     title: 'Services',
     description: 'Printing, laminating, runners, and practical help from students nearby.',
-    image: 'icons/services.jpg',
+    image: 'icons/services_3.jpg',
     icon: 'design_services',
     cta: 'Find Services',
     filterTarget: 'Services',
@@ -475,7 +480,7 @@ const categories = [
   {
     title: 'Food & Beverages',
     description: 'Affordable meals, snacks, and quick cravings delivered around campus.',
-    image: 'icons/f&b_3.jpg',
+    image: 'icons/f&b_2.jpg',
     icon: 'restaurant',
     cta: 'See Menu',
     filterTarget: 'FnB',
@@ -483,7 +488,7 @@ const categories = [
   {
     title: 'Thrift',
     description: 'Pre-loved streetwear, jerseys, sneakers, and accessories with character.',
-    image: 'icons/thrift.jpg',
+    image: 'icons/thrift_3.jpg',
     icon: 'checkroom',
     cta: 'Shop Thrift',
     filterTarget: 'Thrift',

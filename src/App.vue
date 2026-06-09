@@ -20,15 +20,15 @@ if (typeof document !== 'undefined') {
   )
   document.documentElement.style.setProperty(
     '--asset-fnb-menu',
-    `url("${getPublicAsset('icons/f&b_3.jpg')}")`,
+    `url("${getPublicAsset('icons/f&b_2.jpg')}")`,
   )
   document.documentElement.style.setProperty(
     '--asset-services',
-    `url("${getPublicAsset('icons/services.jpg')}")`,
+    `url("${getPublicAsset('icons/services_3.jpg')}")`,
   )
   document.documentElement.style.setProperty(
     '--asset-thrift',
-    `url("${getPublicAsset('icons/thrift.jpg')}")`,
+    `url("${getPublicAsset('icons/thrift_3.jpg')}")`,
   )
 }
 

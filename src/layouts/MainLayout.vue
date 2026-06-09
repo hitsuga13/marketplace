@@ -145,7 +145,20 @@
         </div>
       </div>
 
+      <div v-if="!showFooterMap" class="footer-map-placeholder">
+        <q-icon name="map" size="34px" />
+        <div class="text-weight-bold">UPNM location map</div>
+        <q-btn
+          outline
+          color="white"
+          icon="map"
+          label="Load map"
+          no-caps
+          @click="showFooterMap = true"
+        />
+      </div>
       <iframe
+        v-else
         title="UPNM map"
         src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3984.156540531506!2d101.72083667462846!3d3.052733753738503!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x31cc357ad56c0001%3A0x3d5c81a579c4ae1d!2sUniversiti%20Pertahanan%20Nasional%20Malaysia!5e0!3m2!1sen!2smy!4v1779377846314!5m2!1sen!2smy"
         width="100%"
@@ -538,6 +551,7 @@ export default defineComponent({
     const searchModal = ref(false)
     const cartPanelOpen = ref(false)
     const checkoutDialog = ref(false)
+    const showFooterMap = ref(false)
     const searchQuery = ref('')
     const groupReceipts = ref({})
     const groupReceiptInputs = ref({})
@@ -936,6 +950,7 @@ export default defineComponent({
       searchModal,
       cartPanelOpen,
       checkoutDialog,
+      showFooterMap,
       searchQuery,
       groupReceipts,
       groupReceiptInputs,
