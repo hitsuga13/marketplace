@@ -562,7 +562,8 @@ export default defineComponent({
     const isMenuPage = computed(() =>
       ['/', '/main', '/page1', '/page2', '/page3'].includes(route.path),
     )
-    const showCartButton = computed(() => currentUser.value?.role === 'buyer')
+    const canUseCart = computed(() => ['buyer', 'seller'].includes(currentUser.value?.role))
+    const showCartButton = computed(() => canUseCart.value)
     const unreadChatCount = computed(() => getUnreadChatCount(currentUser.value, chatReadState.value))
     const unreadChatBadge = computed(() => (unreadChatCount.value > 99 ? '99+' : unreadChatCount.value))
 
@@ -754,7 +755,7 @@ export default defineComponent({
     }
 
     const openCartPanel = () => {
-      if (currentUser.value?.role === 'seller' || currentUser.value?.role === 'admin') {
+      if (!canUseCart.value) {
         router.push('/page4')
         return
       }
@@ -790,7 +791,7 @@ export default defineComponent({
     }
 
     const openCheckout = async () => {
-      if (currentUser.value?.role !== 'buyer') {
+      if (!canUseCart.value) {
         cartPanelOpen.value = false
         await navigateAfterDialogsClose('/page4')
         return
@@ -925,7 +926,7 @@ export default defineComponent({
         message: 'Receipt uploaded. Order is waiting for seller confirmation.',
         position: 'top',
       })
-      navigateAfterDialogsClose('/buyer-dashboard')
+      navigateAfterDialogsClose(currentUser.value.role === 'seller' ? '/seller' : '/buyer-dashboard')
     }
 
     const handleCartPaymentClick = () => {
@@ -938,6 +939,11 @@ export default defineComponent({
     }
 
     const goToCart = async () => {
+      if (currentUser.value?.role === 'seller') {
+        await navigateAfterDialogsClose('/seller')
+        return
+      }
+
       if (currentUser.value?.role === 'buyer') {
         await navigateAfterDialogsClose('/buyer-dashboard')
         return
