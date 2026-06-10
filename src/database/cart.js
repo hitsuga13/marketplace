@@ -3,12 +3,32 @@ import { computed, ref, watch } from 'vue'
 import { loadState, saveState } from './storage.js'
 import { getProductStock, getProducts } from './products.js'
 
-export const cart = ref(loadState('upnm-cart', []))
+const getCartStorageKey = () => {
+  const user = loadState('upnm-current-user', null)
+  if (!user?.id) return 'upnm-cart-guest'
+
+  return `upnm-cart-${user.role || 'user'}-${user.id}`
+}
+
+let cartStorageKey = getCartStorageKey()
+
+export const cart = ref(loadState(cartStorageKey, []))
+
+const reloadCartForCurrentUser = () => {
+  const nextCartStorageKey = getCartStorageKey()
+  if (nextCartStorageKey === cartStorageKey) return
+
+  cartStorageKey = nextCartStorageKey
+  cart.value = loadState(cartStorageKey, [])
+}
+
+window.addEventListener('upnm-current-user-updated', reloadCartForCurrentUser)
+window.addEventListener('storage', reloadCartForCurrentUser)
 
 watch(
   cart,
   (value) => {
-    saveState('upnm-cart', value)
+    saveState(cartStorageKey, value)
   },
   { deep: true },
 )

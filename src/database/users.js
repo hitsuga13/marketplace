@@ -91,7 +91,10 @@ export const saveUsers = (users) => {
 
 export const getCurrentUser = () => loadState('upnm-current-user', null)
 
-export const setCurrentUser = (user) => saveState('upnm-current-user', user)
+export const setCurrentUser = (user) => {
+  saveState('upnm-current-user', user)
+  window.dispatchEvent(new Event('upnm-current-user-updated'))
+}
 
 export const getRoleHome = (role) => {
   if (role === 'seller') return '/seller'
