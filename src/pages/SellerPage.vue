@@ -625,7 +625,7 @@ const removeAddon = (index) => {
   form.value.addons.splice(index, 1)
 }
 
-const addVariation = (label = '', price = form.value.price || 0) => {
+const addVariation = (label = '', price = 0) => {
   form.value.variations.push({ label, price })
 }
 
