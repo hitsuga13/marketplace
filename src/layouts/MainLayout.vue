@@ -813,11 +813,9 @@ export default defineComponent({
 
     const setGroupReceiptInput = (sellerKey, element) => {
       if (!element) return
+      if (groupReceiptInputs.value[sellerKey] === element) return
 
-      groupReceiptInputs.value = {
-        ...groupReceiptInputs.value,
-        [sellerKey]: element,
-      }
+      groupReceiptInputs.value[sellerKey] = element
     }
 
     const getGroupReceipt = (group) =>
