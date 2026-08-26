@@ -78,6 +78,8 @@ const toSupabaseUser = (user) => ({
   business_hours: user.businessHours || '',
   pickup_address: user.pickupAddress || '',
   recovery_code: user.recoveryCode || '',
+  presence_status: user.presenceStatus || 'offline',
+  last_seen_at: user.lastSeenAt || null,
   active: user.active !== false,
 })
 
@@ -93,6 +95,8 @@ const fromSupabaseUser = (user) => ({
   businessHours: user.business_hours || '',
   pickupAddress: user.pickup_address || '',
   recoveryCode: user.recovery_code || '',
+  presenceStatus: user.presence_status || 'offline',
+  lastSeenAt: user.last_seen_at || '',
   active: user.active !== false,
 })
 

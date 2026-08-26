@@ -2,6 +2,9 @@
 import { loadState, saveState } from './storage.js'
 import { syncUsersToSupabase } from './supabaseSync.js'
 
+const ONLINE_WINDOW_MS = 2 * 60 * 1000
+const IDLE_WINDOW_MS = 10 * 60 * 1000
+
 export const starterUsers = [
   {
     id: 1,
@@ -94,6 +97,38 @@ export const getCurrentUser = () => loadState('upnm-current-user', null)
 export const setCurrentUser = (user) => {
   saveState('upnm-current-user', user)
   window.dispatchEvent(new Event('upnm-current-user-updated'))
+}
+
+export const getUserPresenceStatus = (user) => {
+  if (!user || user.role !== 'seller') return 'offline'
+
+  const lastSeenTime = user.lastSeenAt ? new Date(user.lastSeenAt).getTime() : 0
+  if (!lastSeenTime) return user.presenceStatus || 'offline'
+
+  const age = Date.now() - lastSeenTime
+  if (age <= ONLINE_WINDOW_MS) return 'online'
+  if (age <= IDLE_WINDOW_MS) return 'idle'
+  return 'offline'
+}
+
+export const markCurrentUserPresence = (status = 'online', userOverride = null) => {
+  const currentUser = userOverride || getCurrentUser()
+  if (currentUser?.role !== 'seller') return null
+
+  const nextUser = {
+    ...currentUser,
+    presenceStatus: status,
+    lastSeenAt: new Date().toISOString(),
+  }
+
+  const users = getUsers().map((user) =>
+    String(user.id) === String(nextUser.id) ? { ...user, ...nextUser } : user,
+  )
+
+  saveUsers(users)
+  setCurrentUser(nextUser)
+  window.dispatchEvent(new Event('upnm-presence-updated'))
+  return nextUser
 }
 
 export const getRoleHome = (role) => {

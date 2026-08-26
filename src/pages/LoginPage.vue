@@ -505,6 +505,7 @@ import {
   getCurrentUser,
   getRoleHome,
   getUsers,
+  markCurrentUserPresence,
   saveUsers,
   setCurrentUser,
 } from 'src/database'
@@ -679,6 +680,7 @@ const handleLogin = () => {
   }
 
   currentUser.value = user
+  if (user.role === 'seller') markCurrentUserPresence('online', user)
   setMessage(`Logged in as ${user.name}.`, 'success')
   router.push(getRoleHome(user.role))
 }
@@ -721,6 +723,7 @@ const handleRegister = () => {
 
   users.value.push(newUser)
   currentUser.value = newUser
+  if (newUser.role === 'seller') markCurrentUserPresence('online', newUser)
   authMode.value = 'login'
   loginForm.value = {
     role: newUser.role,
@@ -960,6 +963,7 @@ const finishRecoveryCodeNotice = () => {
 }
 
 const handleLogout = () => {
+  markCurrentUserPresence('offline')
   currentUser.value = null
   setMessage('Logged out successfully.', 'success')
   router.push('/main')

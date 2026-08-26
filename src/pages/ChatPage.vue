@@ -47,12 +47,15 @@
               <q-avatar size="48px" class="chat-contact-avatar">
                 <q-icon name="person" />
               </q-avatar>
-              <span class="chat-online-dot"></span>
+              <span :class="['chat-online-dot', `chat-online-dot--${getPresenceStatus(conversation)}`]"></span>
             </q-item-section>
             <q-item-section>
               <q-item-label class="chat-contact-name">{{
                 getConversationName(conversation)
               }}</q-item-label>
+              <q-item-label caption :class="['chat-presence-label', `chat-presence-label--${getPresenceStatus(conversation)}`]">
+                {{ getPresenceLabel(conversation) }}
+              </q-item-label>
               <q-item-label caption class="chat-product-name">{{
                 conversation.productName
               }}</q-item-label>
@@ -85,7 +88,9 @@
             </q-avatar>
             <div>
               <div class="chat-main-name">{{ getConversationName(activeConversation) }}</div>
-              <div class="chat-main-status">{{ activeConversation.productName }}</div>
+              <div class="chat-main-status">
+                {{ activeConversation.productName }} - {{ getPresenceLabel(activeConversation) }}
+              </div>
             </div>
           </header>
 
@@ -125,6 +130,7 @@ import {
   getBuyerConversationSummaries,
   getConversationSummaries,
   getCurrentUser,
+  getUserPresenceStatus,
   getUsers,
   loadState,
   saveState,
@@ -136,7 +142,9 @@ const currentUser = ref(getCurrentUser())
 const searchText = ref('')
 const activeConversation = ref(null)
 const chatReadState = ref(loadState('upnm-chat-read-state', {}))
+const presenceTick = ref(Date.now())
 let unsubscribeChatRealtime = null
+let presenceTimer = null
 
 const conversations = computed(() => {
   if (!currentUser.value) return []
@@ -198,6 +206,27 @@ const getConversationName = (conversation) => {
   return currentUser.value?.role === 'seller' ? conversation.buyerName : conversation.sellerName
 }
 
+const getConversationSeller = (conversation) => {
+  if (!conversation) return null
+  if (currentUser.value?.role === 'seller') return currentUser.value
+
+  return getUsers().find(
+    (user) => user.role === 'seller' && user.name === conversation.sellerName,
+  )
+}
+
+const getPresenceStatus = (conversation) => {
+  presenceTick.value
+  return getUserPresenceStatus(getConversationSeller(conversation))
+}
+
+const getPresenceLabel = (conversation) => {
+  const status = getPresenceStatus(conversation)
+  if (status === 'online') return 'Online'
+  if (status === 'idle') return 'Idle'
+  return 'Offline'
+}
+
 const isOwnMessage = (message) => message.senderRole === currentUser.value?.role
 
 const formatTime = (dateString) =>
@@ -248,11 +277,19 @@ watch(
 onMounted(() => {
   unsubscribeChatRealtime = subscribeToChatMessages()
   window.addEventListener('upnm-chat-updated', refreshActiveConversation)
+  window.addEventListener('upnm-presence-updated', refreshActiveConversation)
+  window.addEventListener('upnm-supabase-cache-updated', refreshActiveConversation)
+  presenceTimer = window.setInterval(() => {
+    presenceTick.value = Date.now()
+  }, 30000)
 })
 
 onBeforeUnmount(() => {
   if (unsubscribeChatRealtime) unsubscribeChatRealtime()
+  if (presenceTimer) window.clearInterval(presenceTimer)
   window.removeEventListener('upnm-chat-updated', refreshActiveConversation)
+  window.removeEventListener('upnm-presence-updated', refreshActiveConversation)
+  window.removeEventListener('upnm-supabase-cache-updated', refreshActiveConversation)
 })
 </script>
 

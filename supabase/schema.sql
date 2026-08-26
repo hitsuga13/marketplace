@@ -12,6 +12,8 @@ create table if not exists public.users (
   avatar text default '',
   payment_qr text default '',
   recovery_code text default '',
+  presence_status text not null default 'offline' check (presence_status in ('online', 'idle', 'offline')),
+  last_seen_at timestamptz,
   active boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()

@@ -2174,11 +2174,37 @@ body {
   border: 2px solid white;
 }
 
+.chat-online-dot--idle {
+  background: #f59e0b;
+}
+
+.chat-online-dot--offline {
+  background: #9ca3af;
+}
+
 .chat-contact-name {
   color: #111827;
   font-size: 1rem;
   font-weight: 800;
   line-height: 1.2;
+}
+
+.chat-presence-label {
+  margin-top: 2px;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.chat-presence-label--online {
+  color: #059669;
+}
+
+.chat-presence-label--idle {
+  color: #b45309;
+}
+
+.chat-presence-label--offline {
+  color: #6b7280;
 }
 
 .chat-product-name {
