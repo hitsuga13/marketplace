@@ -230,10 +230,7 @@
 
         <q-card-section v-if="searchQuery" class="search-results">
           <div class="search-results__topline">
-            <div
-              class="text-subtitle2 text-primary text-weight-bold"
-              style="letter-spacing: 0.5px"
-            >
+            <div class="text-subtitle2 text-primary text-weight-bold" style="letter-spacing: 0.5px">
               Top Results
             </div>
             <q-chip dense color="primary" text-color="white" class="q-ma-none">
@@ -359,7 +356,9 @@
                   </div>
 
                   <div class="cart-panel-item__bottom">
-                    <div class="cart-panel-item__price">RM {{ Number(item.price || 0).toFixed(2) }}</div>
+                    <div class="cart-panel-item__price">
+                      RM {{ Number(item.price || 0).toFixed(2) }}
+                    </div>
                     <div class="cart-qty-control">
                       <q-btn
                         flat
@@ -439,17 +438,17 @@
                     {{ group.items.length }} item(s) - RM {{ group.total.toFixed(2) }}
                   </div>
                 </div>
-                <q-chip color="primary" text-color="white" icon="payments" :label="`RM ${group.total.toFixed(2)}`" />
+                <q-chip
+                  color="primary"
+                  text-color="white"
+                  icon="payments"
+                  :label="`RM ${group.total.toFixed(2)}`"
+                />
               </div>
 
               <div class="seller-payment-card__body">
                 <div class="seller-payment-card__qr">
-                  <q-img
-                    v-if="group.paymentQr"
-                    :src="group.paymentQr"
-                    ratio="1"
-                    fit="contain"
-                  />
+                  <q-img v-if="group.paymentQr" :src="group.paymentQr" ratio="1" fit="contain" />
                   <div v-else class="payment-qr-empty">
                     <q-icon name="qr_code_2" size="46px" color="grey-5" />
                     <div>This seller has not uploaded a payment QR yet.</div>
@@ -457,14 +456,19 @@
                 </div>
 
                 <div class="seller-payment-card__items">
-                  <div v-for="item in group.items" :key="item.uniqueKey" class="seller-payment-item">
+                  <div
+                    v-for="item in group.items"
+                    :key="item.uniqueKey"
+                    class="seller-payment-item"
+                  >
                     <q-avatar square class="seller-payment-item__image">
                       <img :src="getImageSrc(item.image)" :alt="item.name" />
                     </q-avatar>
                     <div>
                       <div class="seller-payment-item__name">{{ item.name }}</div>
                       <div class="seller-payment-item__meta">
-                        Qty {{ item.quantity }} - RM {{ (Number(item.price || 0) * item.quantity).toFixed(2) }}
+                        Qty {{ item.quantity }} - RM
+                        {{ (Number(item.price || 0) * item.quantity).toFixed(2) }}
                       </div>
                       <div v-if="item.selectedAddons?.length" class="seller-payment-item__addons">
                         {{ item.selectedAddons.map((addon) => addon.label).join(', ') }}
@@ -488,7 +492,9 @@
                   icon="upload_file"
                   no-caps
                   class="receipt-upload-btn"
-                  :label="getGroupReceipt(group)?.fileName || `Upload receipt for ${group.sellerName}`"
+                  :label="
+                    getGroupReceipt(group)?.fileName || `Upload receipt for ${group.sellerName}`
+                  "
                   @click="groupReceiptInputs[group.sellerKey]?.click()"
                 />
               </div>
@@ -496,7 +502,8 @@
           </div>
 
           <p class="text-grey-7 q-mt-md q-mb-md">
-            Scan each seller QR, complete payment, upload each seller receipt proof, then click the button below.
+            Scan each seller QR, complete payment, upload each seller receipt proof, then click the
+            button below.
           </p>
           <div class="checkout-receipt-status">
             {{ uploadedCheckoutReceiptCount }} / {{ checkoutGroups.length }} receipt(s) uploaded
@@ -525,6 +532,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { getUploadSizeError } from 'src/utils/fileValidation'
 import { getPublicAsset, normalizeStoredImage } from 'src/utils/assets'
+import { isSupabaseConfigured, supabase } from 'src/supabase/client'
 import {
   cart,
   cartCount,
@@ -564,8 +572,99 @@ export default defineComponent({
     )
     const canUseCart = computed(() => ['buyer', 'seller'].includes(currentUser.value?.role))
     const showCartButton = computed(() => canUseCart.value)
-    const unreadChatCount = computed(() => getUnreadChatCount(currentUser.value, chatReadState.value))
-    const unreadChatBadge = computed(() => (unreadChatCount.value > 99 ? '99+' : unreadChatCount.value))
+    const unreadChatCount = computed(() =>
+      getUnreadChatCount(currentUser.value, chatReadState.value),
+    )
+    const unreadChatBadge = computed(() =>
+      unreadChatCount.value > 99 ? '99+' : unreadChatCount.value,
+    )
+    let globalChatChannel = null
+    let authStateSubscription = null
+    let messageRecipientId = null
+
+    const removeGlobalChatChannel = async () => {
+      if (!globalChatChannel || !supabase) return
+      await supabase.removeChannel(globalChatChannel)
+      globalChatChannel = null
+    }
+
+    const showIncomingChatNotification = async (message) => {
+      if (String(message.receiver_id) !== String(messageRecipientId)) return
+
+      let sender = null
+      try {
+        const result = await supabase
+          .from('users')
+          .select('name, avatar')
+          .eq('id', message.sender_id)
+          .maybeSingle()
+        sender = result.data
+      } catch (error) {
+        console.warn('Unable to load chat notification sender', error)
+      }
+
+      $q.notify({
+        type: 'info',
+        position: 'bottom-right',
+        timeout: 5000,
+        icon: sender?.avatar ? undefined : 'person',
+        avatar: sender?.avatar || undefined,
+        message: message.content,
+        caption: sender?.name ? 'New message from ' + sender.name : 'New chat message',
+        actions: [
+          {
+            label: 'Open',
+            color: 'white',
+            handler: () => router.push('/chat'),
+          },
+        ],
+      })
+    }
+
+    const startGlobalChatNotifications = () => {
+      if (!supabase || globalChatChannel || messageRecipientId === null) return
+
+      globalChatChannel = supabase
+        .channel('global-chat-notifications')
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'messages' },
+          (payload) => {
+            if (payload.new) showIncomingChatNotification(payload.new)
+          },
+        )
+        .subscribe()
+    }
+
+    const refreshGlobalChatNotifications = async () => {
+      if (!isSupabaseConfigured || !supabase) return
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      if (!session?.user) {
+        messageRecipientId = null
+        await removeGlobalChatChannel()
+        return
+      }
+
+      const { data: user, error } = await supabase
+        .from('users')
+        .select('id')
+        .eq('auth_user_id', session.user.id)
+        .maybeSingle()
+      if (error || !user) {
+        messageRecipientId = null
+        await removeGlobalChatChannel()
+        return
+      }
+
+      if (String(messageRecipientId) !== String(user.id)) {
+        await removeGlobalChatChannel()
+        messageRecipientId = user.id
+      }
+      startGlobalChatNotifications()
+    }
 
     const refreshSession = () => {
       currentUser.value = getCurrentUser()
@@ -604,6 +703,17 @@ export default defineComponent({
       window.addEventListener('upnm-chat-read-state-updated', refreshSession)
       window.addEventListener('upnm-open-cart', handleExternalCartOpen)
       window.addEventListener('upnm-open-checkout', handleExternalCheckoutOpen)
+      if (isSupabaseConfigured && supabase) {
+        refreshGlobalChatNotifications().catch((error) => {
+          console.warn('Unable to start global chat notifications', error)
+        })
+        const { data } = supabase.auth.onAuthStateChange(() => {
+          refreshGlobalChatNotifications().catch((error) => {
+            console.warn('Unable to refresh global chat notifications', error)
+          })
+        })
+        authStateSubscription = data.subscription
+      }
       refreshSession()
     })
 
@@ -615,6 +725,8 @@ export default defineComponent({
       window.removeEventListener('upnm-chat-read-state-updated', refreshSession)
       window.removeEventListener('upnm-open-cart', handleExternalCartOpen)
       window.removeEventListener('upnm-open-checkout', handleExternalCheckoutOpen)
+      authStateSubscription?.unsubscribe()
+      removeGlobalChatChannel()
     })
 
     const topResults = computed(() => {
@@ -664,10 +776,15 @@ export default defineComponent({
       selectedCartItems.value.reduce((total, item) => total + item.quantity, 0),
     )
     const cartSubtotal = computed(() =>
-      selectedCartItems.value.reduce((total, item) => total + Number(item.price || 0) * item.quantity, 0),
+      selectedCartItems.value.reduce(
+        (total, item) => total + Number(item.price || 0) * item.quantity,
+        0,
+      ),
     )
     const checkoutItems = computed(() =>
-      checkoutItemsSnapshot.value.length > 0 ? checkoutItemsSnapshot.value : selectedCartItems.value,
+      checkoutItemsSnapshot.value.length > 0
+        ? checkoutItemsSnapshot.value
+        : selectedCartItems.value,
     )
     const checkoutSelectedCount = computed(() =>
       checkoutItems.value.reduce((total, item) => total + Number(item.quantity || 1), 0),
@@ -687,7 +804,10 @@ export default defineComponent({
       },
     })
     const getSellerReceiptKey = (sellerName) =>
-      String(sellerName || 'Campus Seller').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-')
+      String(sellerName || 'Campus Seller')
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, '-')
 
     const checkoutGroups = computed(() => {
       const groups = new Map()
@@ -892,26 +1012,29 @@ export default defineComponent({
       }
       if (!validateSelectedCartStock()) return
 
-      createOrders(checkoutItems.value.map((item) => ({
-        ...(() => {
-          const sellerName = item.vendor || item.seller || 'Campus Vendor'
-          const sellerReceipt =
-            groupReceipts.value[getSellerReceiptKey(sellerName)] || groupReceipts.value[sellerName]
-          return {
-            receipt: sellerReceipt?.receipt || '',
-            receiptFileName: sellerReceipt?.fileName || '',
-          }
-        })(),
-        buyerId: currentUser.value.id,
-        productId: item.id,
-        productName: item.name,
-        vendor: item.vendor || item.seller || 'Campus Vendor',
-        image: item.image,
-        total: Number(item.price || 0) * item.quantity,
-        quantity: item.quantity,
-        selectedVariation: item.selectedVar?.label || '',
-        selectedAddons: item.selectedAddons?.map((addon) => ({ ...addon })) || [],
-      })))
+      createOrders(
+        checkoutItems.value.map((item) => ({
+          ...(() => {
+            const sellerName = item.vendor || item.seller || 'Campus Vendor'
+            const sellerReceipt =
+              groupReceipts.value[getSellerReceiptKey(sellerName)] ||
+              groupReceipts.value[sellerName]
+            return {
+              receipt: sellerReceipt?.receipt || '',
+              receiptFileName: sellerReceipt?.fileName || '',
+            }
+          })(),
+          buyerId: currentUser.value.id,
+          productId: item.id,
+          productName: item.name,
+          vendor: item.vendor || item.seller || 'Campus Vendor',
+          image: item.image,
+          total: Number(item.price || 0) * item.quantity,
+          quantity: item.quantity,
+          selectedVariation: item.selectedVar?.label || '',
+          selectedAddons: item.selectedAddons?.map((addon) => ({ ...addon })) || [],
+        })),
+      )
       decreaseProductsStock(checkoutItems.value)
 
       clearSelectedCartItems()
@@ -924,7 +1047,9 @@ export default defineComponent({
         message: 'Receipt uploaded. Order is waiting for seller confirmation.',
         position: 'top',
       })
-      navigateAfterDialogsClose(currentUser.value.role === 'seller' ? '/seller' : '/buyer-dashboard')
+      navigateAfterDialogsClose(
+        currentUser.value.role === 'seller' ? '/seller' : '/buyer-dashboard',
+      )
     }
 
     const handleCartPaymentClick = () => {

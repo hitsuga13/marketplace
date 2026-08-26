@@ -17,7 +17,12 @@ const routes = [
         meta: { role: 'buyer' },
       },
       { path: 'seller', component: () => import('pages/SellerPage.vue'), meta: { role: 'seller' } },
-      { path: 'chat', component: () => import('pages/ChatPage.vue'), meta: { roles: ['buyer', 'seller'] } },
+      { path: 'seller-profile/:sellerId', component: () => import('pages/SellerProfilePage.vue') },
+      {
+        path: 'chat',
+        component: () => import('pages/ChatPage.vue'),
+        meta: { roles: ['buyer', 'seller'] },
+      },
       { path: 'admin', component: () => import('pages/AdminPage.vue'), meta: { role: 'admin' } },
     ],
   },

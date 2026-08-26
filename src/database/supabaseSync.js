@@ -75,6 +75,8 @@ const toSupabaseUser = (user) => ({
   role: user.role || 'buyer',
   avatar: user.avatar || '',
   payment_qr: user.paymentQr || '',
+  business_hours: user.businessHours || '',
+  pickup_address: user.pickupAddress || '',
   recovery_code: user.recoveryCode || '',
   active: user.active !== false,
 })
@@ -88,6 +90,8 @@ const fromSupabaseUser = (user) => ({
   role: user.role,
   avatar: user.avatar || '',
   paymentQr: user.payment_qr || '',
+  businessHours: user.business_hours || '',
+  pickupAddress: user.pickup_address || '',
   recoveryCode: user.recovery_code || '',
   active: user.active !== false,
 })
@@ -155,7 +159,11 @@ const toSupabaseOrder = (order) => {
 const fromSupabaseOrder = (order) => ({
   id: parseLocalId(order.local_id || order.id),
   buyerId: parseLocalId(order.buyer_local_id || order.buyer_id),
-  productId: order.product_local_id ? parseLocalId(order.product_local_id) : order.product_id ? parseLocalId(order.product_id) : null,
+  productId: order.product_local_id
+    ? parseLocalId(order.product_local_id)
+    : order.product_id
+      ? parseLocalId(order.product_id)
+      : null,
   productName: order.product_name,
   vendor: order.vendor,
   image: order.image || '',
@@ -163,7 +171,9 @@ const fromSupabaseOrder = (order) => ({
   total: Number(order.total || 0),
   selectedVariation: order.selected_variation || '',
   selectedAddons: safeArray(order.selected_addons),
-  ...(Object.prototype.hasOwnProperty.call(order, 'receipt') ? { receipt: order.receipt || '' } : {}),
+  ...(Object.prototype.hasOwnProperty.call(order, 'receipt')
+    ? { receipt: order.receipt || '' }
+    : {}),
   receiptFileName: order.receipt_file_name || '',
   status: order.status,
   createdAt: order.created_at,
@@ -188,7 +198,11 @@ const toSupabaseMessage = (message) => ({
 const fromSupabaseMessage = (message) => ({
   id: parseLocalId(message.local_id || message.id),
   conversationId: message.conversation_id,
-  productId: message.product_local_id ? parseLocalId(message.product_local_id) : message.product_id ? parseLocalId(message.product_id) : null,
+  productId: message.product_local_id
+    ? parseLocalId(message.product_local_id)
+    : message.product_id
+      ? parseLocalId(message.product_id)
+      : null,
   productName: message.product_name,
   buyerId: parseLocalId(message.buyer_local_id || message.buyer_id),
   buyerName: message.buyer_name,

@@ -4,7 +4,13 @@
     <section class="chat-shell">
       <aside class="chat-sidebar">
         <div class="chat-sidebar-top">
-          <q-input v-model="searchText" outlined dense placeholder="Search chats" class="chat-search">
+          <q-input
+            v-model="searchText"
+            outlined
+            dense
+            placeholder="Search chats"
+            class="chat-search"
+          >
             <template v-slot:prepend>
               <q-icon name="search" color="grey-6" />
             </template>
@@ -30,7 +36,10 @@
             clickable
             :class="[
               'chat-list-item',
-              { 'chat-list-item--active': activeConversation?.conversationId === conversation.conversationId },
+              {
+                'chat-list-item--active':
+                  activeConversation?.conversationId === conversation.conversationId,
+              },
             ]"
             @click="openConversation(conversation)"
           >
@@ -41,9 +50,15 @@
               <span class="chat-online-dot"></span>
             </q-item-section>
             <q-item-section>
-              <q-item-label class="chat-contact-name">{{ getConversationName(conversation) }}</q-item-label>
-              <q-item-label caption class="chat-product-name">{{ conversation.productName }}</q-item-label>
-              <q-item-label caption class="chat-last-message">{{ conversation.lastMessage }}</q-item-label>
+              <q-item-label class="chat-contact-name">{{
+                getConversationName(conversation)
+              }}</q-item-label>
+              <q-item-label caption class="chat-product-name">{{
+                conversation.productName
+              }}</q-item-label>
+              <q-item-label caption class="chat-last-message">{{
+                conversation.lastMessage
+              }}</q-item-label>
             </q-item-section>
             <q-item-section side top>
               <div class="chat-time">{{ formatTime(conversation.createdAt) }}</div>
@@ -74,43 +89,16 @@
             </div>
           </header>
 
-          <div class="chat-messages">
-            <div
-              v-for="message in activeConversationMessages"
-              :key="message.id"
-              :class="['chat-message-row', isOwnMessage(message) ? 'chat-message-row--own' : '']"
-            >
-              <q-avatar v-if="!isOwnMessage(message)" size="40px" class="chat-contact-avatar">
-                <q-icon name="person" />
-              </q-avatar>
-              <div>
-                <div v-if="!isOwnMessage(message)" class="chat-message-name">
-                  {{ getMessageSenderName(message) }}
-                </div>
-                <div class="chat-message-bubble">
-                  {{ message.text }}
-                </div>
-                <div v-if="isOwnMessage(message)" class="chat-seen">
-                  <q-icon name="done_all" />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <footer class="chat-composer">
-            <q-input
-              v-model="messageText"
-              outlined
-              dense
-              placeholder="Type a message..."
-              class="chat-compose-input"
-              @keyup.enter="sendMessage"
-            >
-              <template v-slot:append>
-                <q-btn flat round dense icon="send" color="primary" @click="sendMessage" />
-              </template>
-            </q-input>
-          </footer>
+          <ChatBox
+            v-if="chatRecipientId && chatProductId"
+            class="chat-live-module"
+            :sender-id="currentUser.id"
+            :receiver-id="chatRecipientId"
+            :product-id="chatProductId"
+          />
+          <q-banner v-else class="q-ma-md bg-orange-1 text-warning">
+            This conversation is missing participant or product details.
+          </q-banner>
         </template>
 
         <div v-else class="chat-empty-state">
@@ -128,19 +116,19 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
-  addMessage,
   getBuyerConversationSummaries,
   getConversationSummaries,
   getCurrentUser,
+  getUsers,
   loadState,
   saveState,
   subscribeToChatMessages,
 } from 'src/database'
+import ChatBox from 'src/components/ChatBox.vue'
 
 const currentUser = ref(getCurrentUser())
 const searchText = ref('')
 const activeConversation = ref(null)
-const messageText = ref('')
 const chatReadState = ref(loadState('upnm-chat-read-state', {}))
 let unsubscribeChatRealtime = null
 
@@ -165,7 +153,21 @@ const filteredConversations = computed(() => {
 })
 
 const activeConversationMessages = computed(() => activeConversation.value?.messages || [])
-const currentReadKey = computed(() => `${currentUser.value?.role || 'guest'}-${currentUser.value?.id || currentUser.value?.name || 'none'}`)
+const chatProductId = computed(() => activeConversationMessages.value[0]?.productId || null)
+const chatRecipientId = computed(() => {
+  if (!activeConversation.value || !currentUser.value) return null
+  if (currentUser.value.role === 'seller')
+    return activeConversation.value.buyerId || activeConversationMessages.value[0]?.buyerId || null
+  return (
+    getUsers().find(
+      (user) => user.role === 'seller' && user.name === activeConversation.value.sellerName,
+    )?.id || null
+  )
+})
+const currentReadKey = computed(
+  () =>
+    `${currentUser.value?.role || 'guest'}-${currentUser.value?.id || currentUser.value?.name || 'none'}`,
+)
 
 const refreshActiveConversation = () => {
   if (!activeConversation.value) return
@@ -182,11 +184,6 @@ const getConversationName = (conversation) => {
 }
 
 const isOwnMessage = (message) => message.senderRole === currentUser.value?.role
-
-const getMessageSenderName = (message) => {
-  if (message.senderRole === 'seller') return message.sellerName
-  return message.buyerName
-}
 
 const formatTime = (dateString) =>
   new Intl.DateTimeFormat('en-MY', {
@@ -233,36 +230,6 @@ watch(
   { immediate: true },
 )
 
-const sendMessage = () => {
-  if (!messageText.value.trim() || !activeConversation.value || !currentUser.value) return
-
-  const firstMessage = activeConversation.value.messages[0]
-  const buyer = {
-    id: firstMessage.buyerId,
-    name: firstMessage.buyerName,
-  }
-  const product = {
-    id: firstMessage.productId,
-    name: firstMessage.productName,
-    vendor: firstMessage.sellerName,
-  }
-
-  addMessage({
-    conversationId: activeConversation.value.conversationId,
-    product,
-    buyer,
-    senderRole: currentUser.value.role,
-    text: messageText.value.trim(),
-  })
-
-  const refreshed = displayedConversations.value.find(
-    (conversation) => conversation.conversationId === activeConversation.value.conversationId,
-  )
-  activeConversation.value = refreshed
-  markConversationRead(refreshed)
-  messageText.value = ''
-}
-
 onMounted(() => {
   unsubscribeChatRealtime = subscribeToChatMessages()
   window.addEventListener('upnm-chat-updated', refreshActiveConversation)
@@ -273,3 +240,16 @@ onBeforeUnmount(() => {
   window.removeEventListener('upnm-chat-updated', refreshActiveConversation)
 })
 </script>
+
+<style scoped>
+.chat-main {
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-live-module {
+  flex: 1;
+  min-height: 0;
+  margin: 12px;
+}
+</style>

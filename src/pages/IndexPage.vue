@@ -3,7 +3,10 @@
   <q-page class="home-page">
     <section class="hero-section">
       <div class="hero-media">
-        <img :src="getPublicAsset('icons/f&b.jpg')" alt="UPNM Campus Marketplace featured food and campus items" />
+        <img
+          :src="getPublicAsset('icons/f&b.jpg')"
+          alt="UPNM Campus Marketplace featured food and campus items"
+        />
       </div>
 
       <div class="hero-content">
@@ -32,11 +35,7 @@
       <div class="page-shell">
         <div class="section-heading">
           <div>
-            <q-badge
-              color="secondary"
-              text-color="dark"
-              label="All"
-            />
+            <q-badge color="secondary" text-color="dark" label="All" />
             <h2>All Campus Items</h2>
           </div>
           <p>Showing actual real-time availability from student vendors.</p>
@@ -44,7 +43,7 @@
 
         <div class="row q-col-gutter-lg">
           <div v-for="category in categories" :key="category.title" class="col-12 col-md-4">
-              <q-card class="category-card" flat bordered>
+            <q-card class="category-card" flat bordered>
               <q-img
                 :src="getImageSrc(category.image)"
                 :alt="category.title"
@@ -124,7 +123,12 @@
               <q-card-section>
                 <div class="text-subtitle1 text-weight-bold ellipsis">{{ item.name }}</div>
                 <div class="text-caption text-grey-7">{{ getCategoryLabel(item.category) }}</div>
-                <div :class="['text-caption', isProductOutOfStock(item) ? 'text-negative' : 'text-grey-7']">
+                <div
+                  :class="[
+                    'text-caption',
+                    isProductOutOfStock(item) ? 'text-negative' : 'text-grey-7',
+                  ]"
+                >
                   {{ getStockLabel(item) }}
                 </div>
 
@@ -177,7 +181,11 @@
             <div class="col q-pr-md detail-scroll-area">
               <div class="detail-seller-row q-mb-md">
                 <q-avatar size="44px" class="detail-seller-avatar">
-                  <img v-if="selectedSeller?.avatar" :src="selectedSeller.avatar" alt="Seller profile" />
+                  <img
+                    v-if="selectedSeller?.avatar"
+                    :src="selectedSeller.avatar"
+                    alt="Seller profile"
+                  />
                   <q-icon v-else name="storefront" />
                 </q-avatar>
                 <div>
@@ -186,6 +194,16 @@
                     {{ selectedItem.vendor || selectedItem.seller || 'Campus Seller' }}
                   </div>
                 </div>
+                <q-btn
+                  v-if="selectedSeller?.id"
+                  flat
+                  dense
+                  color="primary"
+                  icon="storefront"
+                  label="Store profile"
+                  class="q-ml-auto"
+                  @click="openSellerProfile"
+                />
               </div>
 
               <div class="description-box q-mb-md text-body1 text-grey-9">
@@ -354,13 +372,7 @@
 
         <q-card-actions align="center" class="q-px-lg q-pb-lg">
           <q-btn flat color="grey-7" label="Cancel" v-close-popup />
-          <q-btn
-            unelevated
-            color="primary"
-            icon="login"
-            label="Go to Sign in"
-            @click="goToLogin"
-          />
+          <q-btn unelevated color="primary" icon="login" label="Go to Sign in" @click="goToLogin" />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -378,12 +390,7 @@
           </div>
 
           <div class="payment-qr-box q-mt-md">
-            <q-img
-              v-if="sellerPaymentQr"
-              :src="sellerPaymentQr"
-              ratio="1"
-              fit="contain"
-            />
+            <q-img v-if="sellerPaymentQr" :src="sellerPaymentQr" ratio="1" fit="contain" />
             <div v-else class="payment-qr-empty">
               <q-icon name="qr_code_2" size="54px" color="grey-5" />
               <div>This seller has not uploaded a payment QR yet.</div>
@@ -578,10 +585,7 @@ const isPriceAvailable = computed(() => {
 
 const finalPrice = computed(() => {
   if (!isPriceAvailable.value) return 0
-  let base =
-    selectedItem.value.price !== undefined
-      ? Number(selectedItem.value.price || 0)
-      : 0
+  let base = selectedItem.value.price !== undefined ? Number(selectedItem.value.price || 0) : 0
   if (selectedVar.value && selectedVar.value.price !== undefined) {
     base += Number(selectedVar.value.price || 0)
   }
@@ -725,12 +729,23 @@ const openChat = () => {
   chatDialog.value = true
 }
 
+const openSellerProfile = () => {
+  if (!selectedSeller.value?.id) return
+  detailsModal.value = false
+  router.push(`/seller-profile/${selectedSeller.value.id}`)
+}
+
 const handleAddToCart = () => {
   if (!requireBuyerLogin()) return
 
   if (!validateSelection()) return
 
-  const added = addToCart(selectedItem.value, selectedVar.value, finalPrice.value, selectedAddons.value)
+  const added = addToCart(
+    selectedItem.value,
+    selectedVar.value,
+    finalPrice.value,
+    selectedAddons.value,
+  )
   if (!added) {
     $q.notify({
       type: 'negative',

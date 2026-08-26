@@ -19,7 +19,22 @@
                 <span><q-icon name="receipt_long" /> {{ sellerOrders.length }} Orders</span>
               </div>
             </div>
-            <q-btn unelevated color="primary" icon="add_box" label="Add Product" @click="openAddProduct" />
+            <div class="row q-gutter-sm">
+              <q-btn
+                outline
+                color="primary"
+                icon="storefront"
+                label="Store Profile"
+                @click="openStoreProfile"
+              />
+              <q-btn
+                unelevated
+                color="primary"
+                icon="add_box"
+                label="Add Product"
+                @click="openAddProduct"
+              />
+            </div>
           </q-card-section>
         </q-card>
 
@@ -30,7 +45,12 @@
                 <div class="text-h6 text-weight-bold">Buyer Orders</div>
                 <div class="text-grey-7">Review receipts and confirm buyer payments.</div>
               </div>
-              <q-chip color="primary" text-color="white" icon="pending_actions" :label="`${pendingOrders.length} Pending`" />
+              <q-chip
+                color="primary"
+                text-color="white"
+                icon="pending_actions"
+                :label="`${pendingOrders.length} Pending`"
+              />
             </div>
 
             <q-list v-if="sellerOrders.length" separator class="q-mt-md seller-order-list">
@@ -51,7 +71,12 @@
                   <q-item-label caption>{{ formatDate(order.createdAt) }}</q-item-label>
                 </q-item-section>
                 <q-item-section side>
-                  <q-chip dense :color="getStatusColor(order.status)" text-color="white" :label="order.status" />
+                  <q-chip
+                    dense
+                    :color="getStatusColor(order.status)"
+                    text-color="white"
+                    :label="order.status"
+                  />
                 </q-item-section>
                 <q-item-section side class="seller-order-actions">
                   <q-btn
@@ -97,9 +122,7 @@
               </q-item>
             </q-list>
 
-            <q-banner v-else class="role-banner q-mt-md">
-              No buyer orders yet.
-            </q-banner>
+            <q-banner v-else class="role-banner q-mt-md"> No buyer orders yet. </q-banner>
           </q-card-section>
         </q-card>
 
@@ -127,7 +150,9 @@
               <q-card flat bordered class="seller-add-card" @click="openAddProduct">
                 <q-icon name="add_circle" size="58px" color="primary" />
                 <div class="text-subtitle1 text-weight-bold q-mt-sm">Add Product</div>
-                <div class="text-caption text-grey-7 text-center">Upload image and list a new item</div>
+                <div class="text-caption text-grey-7 text-center">
+                  Upload image and list a new item
+                </div>
               </q-card>
 
               <q-card
@@ -138,12 +163,21 @@
                 class="seller-product-card"
                 @click="openEditProduct(product)"
               >
-                <q-img :src="getImageSrc(product.image)" :alt="product.name" ratio="1" fit="cover" />
+                <q-img
+                  :src="getImageSrc(product.image)"
+                  :alt="product.name"
+                  ratio="1"
+                  fit="cover"
+                />
                 <q-card-section class="text-center">
                   <div class="text-subtitle2 text-weight-bold ellipsis">{{ product.name }}</div>
-                  <div class="text-caption text-grey-7">{{ getCategoryLabel(product.category) }}</div>
+                  <div class="text-caption text-grey-7">
+                    {{ getCategoryLabel(product.category) }}
+                  </div>
                   <div class="text-caption text-grey-7">{{ getStockLabel(product) }}</div>
-                  <div class="seller-product-price">RM {{ Number(product.price || 0).toFixed(2) }}</div>
+                  <div class="seller-product-price">
+                    RM {{ Number(product.price || 0).toFixed(2) }}
+                  </div>
                   <q-toggle
                     v-model="product.active"
                     color="primary"
@@ -154,8 +188,20 @@
                   />
                 </q-card-section>
                 <q-card-actions align="center" class="q-pb-md">
-                  <q-btn flat round color="primary" icon="edit" @click.stop="openEditProduct(product)" />
-                  <q-btn flat round color="negative" icon="delete" @click.stop="deleteProduct(product.id)" />
+                  <q-btn
+                    flat
+                    round
+                    color="primary"
+                    icon="edit"
+                    @click.stop="openEditProduct(product)"
+                  />
+                  <q-btn
+                    flat
+                    round
+                    color="negative"
+                    icon="delete"
+                    @click.stop="deleteProduct(product.id)"
+                  />
                 </q-card-actions>
               </q-card>
             </div>
@@ -208,10 +254,12 @@
     <q-dialog v-model="addProductDialog">
       <q-card class="seller-product-dialog">
         <q-card-section>
-          <div class="text-h6 text-weight-bold">{{ editingProductId ? 'Edit Product' : 'Add Product' }}</div>
+          <div class="text-h6 text-weight-bold">
+            {{ editingProductId ? 'Edit Product' : 'Add Product' }}
+          </div>
           <div class="text-grey-7">Fill in product details and upload your product image.</div>
 
-            <div class="seller-upload-preview q-mt-md">
+          <div class="seller-upload-preview q-mt-md">
             <q-img v-if="form.image" :src="getImageSrc(form.image)" ratio="1" fit="cover" />
             <div v-else class="seller-upload-empty">
               <q-icon name="image" size="48px" color="primary" />
@@ -247,7 +295,14 @@
             map-options
             class="q-mt-md"
           />
-          <q-input v-model="form.price" outlined dense label="Price (RM)" type="number" class="q-mt-md" />
+          <q-input
+            v-model="form.price"
+            outlined
+            dense
+            label="Price (RM)"
+            type="number"
+            class="q-mt-md"
+          />
           <q-input
             v-model="form.stock"
             outlined
@@ -282,7 +337,11 @@
             </div>
 
             <div v-if="form.variations.length" class="seller-addon-list q-mt-sm">
-              <div v-for="(variation, index) in form.variations" :key="index" class="seller-addon-row">
+              <div
+                v-for="(variation, index) in form.variations"
+                :key="index"
+                class="seller-addon-row"
+              >
                 <q-input
                   v-model="variation.label"
                   outlined
@@ -366,7 +425,14 @@
               No add-on options yet. Add one if buyers can choose extras.
             </q-banner>
           </div>
-          <q-input v-model="form.desc1" outlined dense label="Description" type="textarea" class="q-mt-md" />
+          <q-input
+            v-model="form.desc1"
+            outlined
+            dense
+            label="Description"
+            type="textarea"
+            class="q-mt-md"
+          />
         </q-card-section>
 
         <q-card-actions align="right" class="q-px-md q-pb-md">
@@ -410,7 +476,8 @@
             class="receipt-preview-image"
           />
           <q-banner v-else class="role-banner">
-            Receipt uploaded as {{ selectedReceiptOrder?.receiptFileName || 'file' }}. Image preview is only available for image receipts.
+            Receipt uploaded as {{ selectedReceiptOrder?.receiptFileName || 'file' }}. Image preview
+            is only available for image receipts.
           </q-banner>
         </q-card-section>
       </q-card>
@@ -445,6 +512,7 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import ImageCropDialog from 'src/components/ImageCropDialog.vue'
 import { getUploadSizeError } from 'src/utils/fileValidation'
@@ -463,6 +531,7 @@ import {
 } from 'src/database'
 
 const $q = useQuasar()
+const router = useRouter()
 const currentUser = ref(getCurrentUser())
 const sellerProducts = ref(getSellerProducts())
 const addProductDialog = ref(false)
@@ -515,9 +584,12 @@ const filteredProducts = computed(() => {
 const conversations = computed(() => getConversationSummaries(currentUser.value?.name || ''))
 const activeConversationMessages = computed(() => activeConversation.value?.messages || [])
 const sellerOrders = computed(() => buyerOrders.value)
-const pendingOrders = computed(() => sellerOrders.value.filter((order) => order.status === 'In Progress'))
+const pendingOrders = computed(() =>
+  sellerOrders.value.filter((order) => order.status === 'In Progress'),
+)
 
-const getCategoryLabel = (category) => (category === 'FnB' ? 'Food & Beverages' : category || 'General')
+const getCategoryLabel = (category) =>
+  category === 'FnB' ? 'Food & Beverages' : category || 'General'
 const getStockLabel = (product) => {
   const stock = getProductStock(product)
   if (stock === null) return 'Stock not set'
@@ -550,6 +622,10 @@ const formatDate = (dateString) =>
 
 const saveProducts = () => {
   saveSellerProducts(sellerProducts.value)
+}
+
+const openStoreProfile = () => {
+  if (currentUser.value?.id) router.push(`/seller-profile/${currentUser.value.id}`)
 }
 
 const openAddProduct = () => {
@@ -650,7 +726,12 @@ const getCleanAddons = () =>
     .filter((addon) => addon.label)
 
 const saveProductForm = () => {
-  if (!form.value.name.trim() || !form.value.desc1.trim() || !form.value.image || form.value.stock === '') {
+  if (
+    !form.value.name.trim() ||
+    !form.value.desc1.trim() ||
+    !form.value.image ||
+    form.value.stock === ''
+  ) {
     $q.notify({
       type: 'negative',
       message: 'Please fill product name, stock, description, and upload an image.',
@@ -764,9 +845,10 @@ const refreshSellerData = () => {
   buyerOrders.value = getSellerOrders(currentUser.value?.name)
 
   if (activeConversationId) {
-    activeConversation.value = getConversationSummaries(currentUser.value?.name || '').find(
-      (item) => item.conversationId === activeConversationId,
-    ) || activeConversation.value
+    activeConversation.value =
+      getConversationSummaries(currentUser.value?.name || '').find(
+        (item) => item.conversationId === activeConversationId,
+      ) || activeConversation.value
   }
 }
 
