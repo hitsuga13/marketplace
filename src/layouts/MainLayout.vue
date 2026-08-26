@@ -589,28 +589,26 @@ export default defineComponent({
     }
 
     const showIncomingChatNotification = async (message) => {
-      if (String(message.receiver_id) !== String(messageRecipientId)) return
+      const user = currentUser.value
+      const isRecipient =
+        user?.role === 'buyer'
+          ? String(message.buyer_local_id || message.buyer_id) === String(user.id) &&
+            message.sender_role === 'seller'
+          : user?.role === 'seller' &&
+            message.seller_name === user.name &&
+            message.sender_role === 'buyer'
 
-      let sender = null
-      try {
-        const result = await supabase
-          .from('users')
-          .select('name, avatar')
-          .eq('id', message.sender_id)
-          .maybeSingle()
-        sender = result.data
-      } catch (error) {
-        console.warn('Unable to load chat notification sender', error)
-      }
+      if (!isRecipient) return
+
+      const senderName = message.sender_role === 'buyer' ? message.buyer_name : message.seller_name
 
       $q.notify({
         type: 'info',
         position: 'bottom-right',
         timeout: 5000,
-        icon: sender?.avatar ? undefined : 'person',
-        avatar: sender?.avatar || undefined,
-        message: message.content,
-        caption: sender?.name ? 'New message from ' + sender.name : 'New chat message',
+        icon: 'person',
+        message: message.message,
+        caption: senderName ? 'New message from ' + senderName : 'New chat message',
         actions: [
           {
             label: 'Open',
@@ -628,7 +626,7 @@ export default defineComponent({
         .channel('global-chat-notifications')
         .on(
           'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'messages' },
+          { event: 'INSERT', schema: 'public', table: 'chat_messages' },
           (payload) => {
             if (payload.new) showIncomingChatNotification(payload.new)
           },
@@ -637,31 +635,15 @@ export default defineComponent({
     }
 
     const refreshGlobalChatNotifications = async () => {
-      if (!isSupabaseConfigured || !supabase) return
-
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-      if (!session?.user) {
+      if (!isSupabaseConfigured || !supabase || !['buyer', 'seller'].includes(currentUser.value?.role)) {
         messageRecipientId = null
         await removeGlobalChatChannel()
         return
       }
 
-      const { data: user, error } = await supabase
-        .from('users')
-        .select('id')
-        .eq('auth_user_id', session.user.id)
-        .maybeSingle()
-      if (error || !user) {
-        messageRecipientId = null
+      if (String(messageRecipientId) !== String(currentUser.value.id)) {
         await removeGlobalChatChannel()
-        return
-      }
-
-      if (String(messageRecipientId) !== String(user.id)) {
-        await removeGlobalChatChannel()
-        messageRecipientId = user.id
+        messageRecipientId = currentUser.value.id
       }
       startGlobalChatNotifications()
     }
@@ -670,6 +652,9 @@ export default defineComponent({
       currentUser.value = getCurrentUser()
       chatReadState.value = loadState('upnm-chat-read-state', {})
       databaseVersion.value += 1
+      refreshGlobalChatNotifications().catch((error) => {
+        console.warn('Unable to refresh global chat notifications', error)
+      })
     }
 
     const handleExternalCartOpen = () => {

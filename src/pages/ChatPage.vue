@@ -95,6 +95,12 @@
             :sender-id="currentUser.id"
             :receiver-id="chatRecipientId"
             :product-id="chatProductId"
+            :conversation-id="activeConversation.conversationId"
+            :product-name="activeConversation.productName"
+            :buyer-id="chatBuyerId"
+            :buyer-name="chatBuyerName"
+            :seller-name="chatSellerName"
+            :sender-role="currentUser.role"
           />
           <q-banner v-else class="q-ma-md bg-orange-1 text-warning">
             This conversation is missing participant or product details.
@@ -164,6 +170,15 @@ const chatRecipientId = computed(() => {
     )?.id || null
   )
 })
+const chatBuyerId = computed(() =>
+  currentUser.value?.role === 'buyer' ? currentUser.value.id : chatRecipientId.value,
+)
+const chatBuyerName = computed(() =>
+  currentUser.value?.role === 'buyer' ? currentUser.value.name : activeConversation.value?.buyerName || '',
+)
+const chatSellerName = computed(() =>
+  currentUser.value?.role === 'seller' ? currentUser.value.name : activeConversation.value?.sellerName || '',
+)
 const currentReadKey = computed(
   () =>
     `${currentUser.value?.role || 'guest'}-${currentUser.value?.id || currentUser.value?.name || 'none'}`,

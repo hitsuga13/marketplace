@@ -11,8 +11,8 @@
         v-for="message in messages"
         :key="message.id"
         :sent="isOwnMessage(message)"
-        :name="isOwnMessage(message) ? 'You' : 'Seller'"
-        :text="[message.content]"
+        :name="isOwnMessage(message) ? 'You' : otherParticipantName"
+        :text="[message.message]"
         :stamp="formatTime(message.created_at)"
       />
       <div v-if="!messages.length" class="text-center text-grey-7 q-pa-lg">
@@ -46,7 +46,7 @@
 </template>
 
 <script setup>
-import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import { isSupabaseConfigured, supabase } from 'src/supabase/client'
 
@@ -54,6 +54,12 @@ const props = defineProps({
   senderId: { type: [String, Number], required: true },
   receiverId: { type: [String, Number], required: true },
   productId: { type: [String, Number], default: null },
+  conversationId: { type: String, required: true },
+  productName: { type: String, default: '' },
+  buyerId: { type: [String, Number], required: true },
+  buyerName: { type: String, default: '' },
+  sellerName: { type: String, default: 'Campus Seller' },
+  senderRole: { type: String, required: true },
 })
 
 const $q = useQuasar()
@@ -75,7 +81,10 @@ const statusIcon = () =>
     : connectionStatus.value === '🔴 Offline'
       ? 'wifi_off'
       : 'sync'
-const isOwnMessage = (message) => String(message.sender_id) === String(props.senderId)
+const otherParticipantName = computed(() =>
+  props.senderRole === 'seller' ? props.buyerName : props.sellerName,
+)
+const isOwnMessage = (message) => message.sender_role === props.senderRole
 const formatTime = (date) =>
   new Intl.DateTimeFormat('en-MY', { hour: '2-digit', minute: '2-digit' }).format(new Date(date))
 const notifyError = (message) => {
@@ -86,12 +95,7 @@ const notifyError = (message) => {
   }
 }
 const messageMatchesConversation = (message) => {
-  const participants = [String(message.sender_id), String(message.receiver_id)].sort().join(':')
-  const expected = [String(props.senderId), String(props.receiverId)].sort().join(':')
-  return (
-    participants === expected &&
-    (!props.productId || String(message.product_id) === String(props.productId))
-  )
+  return message.conversation_id === props.conversationId
 }
 const appendMessage = async (message) => {
   if (
@@ -106,12 +110,9 @@ const appendMessage = async (message) => {
 const loadMessages = async () => {
   if (!isSupabaseConfigured || !supabase) return
   const { data, error } = await supabase
-    .from('messages')
+    .from('chat_messages')
     .select('*')
-    .or(
-      `and(sender_id.eq.${props.senderId},receiver_id.eq.${props.receiverId}),and(sender_id.eq.${props.receiverId},receiver_id.eq.${props.senderId})`,
-    )
-    .eq('product_id', props.productId)
+    .eq('conversation_id', props.conversationId)
     .order('created_at')
   if (error) return notifyError(`Unable to load messages: ${error.message}`)
   messages.value = data || []
@@ -138,7 +139,7 @@ const connect = async () => {
     .channel('chat_room')
     .on(
       'postgres_changes',
-      { event: 'INSERT', schema: 'public', table: 'messages' },
+      { event: 'INSERT', schema: 'public', table: 'chat_messages' },
       ({ new: message }) => appendMessage(message),
     )
     .subscribe((status) => {
@@ -154,12 +155,19 @@ const sendMessage = async () => {
   sending.value = true
   try {
     const { data, error } = await supabase
-      .from('messages')
+      .from('chat_messages')
       .insert({
-        sender_id: props.senderId,
-        receiver_id: props.receiverId,
-        product_id: props.productId,
-        content: draft.value.trim(),
+        local_id: `msg-${Date.now()}`,
+        conversation_id: props.conversationId,
+        buyer_id: null,
+        buyer_local_id: String(props.buyerId),
+        product_id: null,
+        product_local_id: props.productId ? String(props.productId) : null,
+        product_name: props.productName,
+        buyer_name: props.buyerName,
+        seller_name: props.sellerName,
+        sender_role: props.senderRole,
+        message: draft.value.trim(),
       })
       .select()
       .single()
@@ -192,7 +200,7 @@ onBeforeUnmount(async () => {
   await disconnect()
 })
 watch(
-  () => [props.senderId, props.receiverId, props.productId],
+  () => [props.senderId, props.receiverId, props.productId, props.conversationId],
   async () => {
     await loadMessages()
     await connect()
