@@ -7,7 +7,14 @@
           <div class="col-12 col-sm">
             <div class="row items-center q-gutter-sm">
               <div class="text-h5 text-weight-bold">
-                {{ displaySeller?.name || 'Seller profile' }}
+                <span>{{ displaySeller?.name || 'Seller profile' }}</span>
+                <q-icon
+                  v-if="isDisplaySellerVerified"
+                  name="verified"
+                  color="primary"
+                  size="22px"
+                  class="verified-seller-mark"
+                />
               </div>
               <q-btn
                 v-if="isOwner"
@@ -252,6 +259,11 @@ const markClosed = ref(false)
 const pickupAddress = ref('')
 
 const displaySeller = computed(() => seller.value || props.fallbackSeller)
+const isDisplaySellerVerified = computed(
+  () =>
+    Boolean(displaySeller.value?.id || displaySeller.value?.name) &&
+    displaySeller.value?.verifiedSeller !== false,
+)
 const schedule = computed(() =>
   normaliseSchedule(displaySeller.value?.business_hours || displaySeller.value?.businessHours),
 )

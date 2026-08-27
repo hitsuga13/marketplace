@@ -83,9 +83,12 @@ export const getUsers = () => {
 
   return mergedUsers.map((user) => ({
     ...user,
+    verifiedSeller: user.role === 'seller' ? user.verifiedSeller !== false : false,
     recoveryCode: user.recoveryCode || generateRecoveryCode(),
   }))
 }
+
+export const isVerifiedSeller = (user) => user?.role === 'seller' && user.verifiedSeller !== false
 
 export const saveUsers = (users) => {
   saveState('upnm-users', users)

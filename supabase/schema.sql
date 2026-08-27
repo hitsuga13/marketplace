@@ -12,6 +12,7 @@ create table if not exists public.users (
   avatar text default '',
   payment_qr text default '',
   recovery_code text default '',
+  verified_seller boolean not null default false,
   presence_status text not null default 'offline' check (presence_status in ('online', 'idle', 'offline')),
   last_seen_at timestamptz,
   active boolean not null default true,
@@ -91,4 +92,8 @@ values
   ('Campus Kitchen', 'seller@upnm.test', '', '123456', 'seller', 'SELLER-2026', true),
   ('Admin User', 'admin@upnm.test', '', '123456', 'admin', 'ADMIN-2026', true)
 on conflict (email) do nothing;
+
+update public.users
+set verified_seller = true
+where role = 'seller';
   

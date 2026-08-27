@@ -52,7 +52,13 @@
             <q-item-section>
               <q-item-label class="chat-contact-name">{{
                 getConversationName(conversation)
-              }}</q-item-label>
+              }}<q-icon
+                v-if="isConversationSellerVerified(conversation)"
+                name="verified"
+                color="primary"
+                size="16px"
+                class="verified-seller-mark"
+              /></q-item-label>
               <q-item-label caption :class="['chat-presence-label', `chat-presence-label--${getPresenceStatus(conversation)}`]">
                 {{ getPresenceLabel(conversation) }}
               </q-item-label>
@@ -87,7 +93,16 @@
               <q-icon name="person" />
             </q-avatar>
             <div>
-              <div class="chat-main-name">{{ getConversationName(activeConversation) }}</div>
+              <div class="chat-main-name">
+                <span>{{ getConversationName(activeConversation) }}</span>
+                <q-icon
+                  v-if="isConversationSellerVerified(activeConversation)"
+                  name="verified"
+                  color="primary"
+                  size="22px"
+                  class="verified-seller-mark"
+                />
+              </div>
               <div class="chat-main-status">
                 {{ activeConversation.productName }} - {{ getPresenceLabel(activeConversation) }}
               </div>
@@ -132,6 +147,7 @@ import {
   getCurrentUser,
   getUserPresenceStatus,
   getUsers,
+  isVerifiedSeller,
   loadState,
   saveState,
   subscribeToChatMessages,
@@ -226,6 +242,8 @@ const getPresenceLabel = (conversation) => {
   if (status === 'idle') return 'Idle'
   return 'Offline'
 }
+
+const isConversationSellerVerified = (conversation) => isVerifiedSeller(getConversationSeller(conversation))
 
 const isOwnMessage = (message) => message.senderRole === currentUser.value?.role
 

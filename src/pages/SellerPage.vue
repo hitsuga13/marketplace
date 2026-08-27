@@ -10,7 +10,16 @@
               <q-icon v-else name="storefront" size="68px" />
             </q-avatar>
             <div class="seller-shop-copy">
-              <div class="seller-shop-name">{{ currentUser?.name || 'Campus Seller' }}</div>
+              <div class="seller-shop-name">
+                <span>{{ currentUser?.name || 'Campus Seller' }}</span>
+                <q-icon
+                  v-if="isSellerVerified(currentUser)"
+                  name="verified"
+                  color="primary"
+                  size="24px"
+                  class="verified-seller-mark"
+                />
+              </div>
               <div class="seller-shop-subtitle">UPNM student marketplace seller</div>
               <div class="seller-shop-stats">
                 <span><q-icon name="place" /> UPNM Campus</span>
@@ -217,7 +226,15 @@
               <img v-if="currentUser?.avatar" :src="currentUser.avatar" alt="Shop owner" />
               <q-icon v-else name="person" size="70px" color="primary" />
             </q-avatar>
-            <div class="text-weight-bold q-mt-md">{{ currentUser?.name || 'Seller' }}</div>
+            <div class="text-weight-bold q-mt-md row items-center justify-center q-gutter-xs">
+              <span>{{ currentUser?.name || 'Seller' }}</span>
+              <q-icon
+                v-if="isSellerVerified(currentUser)"
+                name="verified"
+                color="primary"
+                size="18px"
+              />
+            </div>
             <div class="text-grey-7">{{ currentUser?.email }}</div>
           </q-card-section>
         </q-card>
@@ -524,6 +541,7 @@ import {
   getProductStock,
   getSellerOrders,
   getSellerProducts,
+  isVerifiedSeller,
   fetchOrderReceipt,
   saveSellerProducts,
   subscribeToChatMessages,
@@ -547,6 +565,7 @@ const productCropSource = ref('')
 const editingProductId = ref(null)
 const buyerOrders = ref(getSellerOrders(currentUser.value?.name))
 const getImageSrc = (src) => normalizeStoredImage(src)
+const isSellerVerified = (seller) => isVerifiedSeller(seller)
 let unsubscribeChatRealtime = null
 
 const categoryOptions = [

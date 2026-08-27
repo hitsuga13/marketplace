@@ -191,7 +191,14 @@
                 <div>
                   <div class="detail-seller-label">Seller</div>
                   <div class="detail-seller-name">
-                    {{ selectedItem.vendor || selectedItem.seller || 'Campus Seller' }}
+                    <span>{{ selectedItem.vendor || selectedItem.seller || 'Campus Seller' }}</span>
+                    <q-icon
+                      v-if="isSellerVerified(selectedSeller)"
+                      name="verified"
+                      color="primary"
+                      size="18px"
+                      class="verified-seller-mark"
+                    />
                   </div>
                 </div>
                 <q-btn
@@ -384,7 +391,15 @@
             <q-icon name="qr_code_2" size="34px" />
           </q-avatar>
           <div class="text-h6 text-weight-bold q-mt-md">Pay Seller via QR</div>
-          <div class="text-grey-7">{{ selectedItem.vendor || 'Campus Seller' }}</div>
+          <div class="text-grey-7 row items-center justify-center q-gutter-xs">
+            <span>{{ selectedItem.vendor || 'Campus Seller' }}</span>
+            <q-icon
+              v-if="isSellerVerified(selectedSeller)"
+              name="verified"
+              color="primary"
+              size="16px"
+            />
+          </div>
           <div class="text-h5 text-primary text-weight-bold q-mt-sm">
             RM {{ finalPrice.toFixed(2) }}
           </div>
@@ -450,6 +465,7 @@ import {
   getProductMessages,
   getProducts,
   getSellerForProduct,
+  isVerifiedSeller,
   isProductOutOfStock,
   decreaseProductStock,
   subscribeToChatMessages,
@@ -522,6 +538,7 @@ const selectedSeller = computed(() => {
 })
 const sellerPaymentQr = computed(() => selectedSeller.value?.paymentQr || '')
 const getImageSrc = (src) => normalizeStoredImage(src)
+const isSellerVerified = (seller) => isVerifiedSeller(seller)
 
 const getCategoryLabel = (catKey) => {
   if (catKey === 'FnB') return 'Food & Beverages'
