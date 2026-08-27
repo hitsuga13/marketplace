@@ -193,8 +193,8 @@
                   <div class="detail-seller-name">
                     <span>{{ selectedItem.vendor || selectedItem.seller || 'Campus Seller' }}</span>
                     <q-icon
-                      v-if="isSellerVerified(selectedSeller)"
-                      name="verified"
+                      v-if="isSellerVerified(selectedSeller, selectedItem)"
+                      name="check_circle"
                       color="primary"
                       size="18px"
                       class="verified-seller-mark"
@@ -394,8 +394,8 @@
           <div class="text-grey-7 row items-center justify-center q-gutter-xs">
             <span>{{ selectedItem.vendor || 'Campus Seller' }}</span>
             <q-icon
-              v-if="isSellerVerified(selectedSeller)"
-              name="verified"
+              v-if="isSellerVerified(selectedSeller, selectedItem)"
+              name="check_circle"
               color="primary"
               size="16px"
             />
@@ -465,6 +465,7 @@ import {
   getProductMessages,
   getProducts,
   getSellerForProduct,
+  getUsers,
   isVerifiedSeller,
   isProductOutOfStock,
   decreaseProductStock,
@@ -538,7 +539,18 @@ const selectedSeller = computed(() => {
 })
 const sellerPaymentQr = computed(() => selectedSeller.value?.paymentQr || '')
 const getImageSrc = (src) => normalizeStoredImage(src)
-const isSellerVerified = (seller) => isVerifiedSeller(seller)
+const isSellerVerified = (seller, product = null) => {
+  if (isVerifiedSeller(seller)) return true
+  const sellerName = product?.vendor || product?.seller
+  if (!sellerName) return false
+
+  return Boolean(
+    seller?.role === 'seller' ||
+      getUsers().some(
+        (user) => user.role === 'seller' && user.name.toLowerCase() === sellerName.toLowerCase(),
+      ),
+  )
+}
 
 const getCategoryLabel = (catKey) => {
   if (catKey === 'FnB') return 'Food & Beverages'

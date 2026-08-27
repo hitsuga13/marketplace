@@ -10,7 +10,7 @@
                 <span>{{ displaySeller?.name || 'Seller profile' }}</span>
                 <q-icon
                   v-if="isDisplaySellerVerified"
-                  name="verified"
+                  name="check_circle"
                   color="primary"
                   size="22px"
                   class="verified-seller-mark"

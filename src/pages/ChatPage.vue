@@ -54,7 +54,7 @@
                 getConversationName(conversation)
               }}<q-icon
                 v-if="isConversationSellerVerified(conversation)"
-                name="verified"
+                name="check_circle"
                 color="primary"
                 size="16px"
                 class="verified-seller-mark"
@@ -97,7 +97,7 @@
                 <span>{{ getConversationName(activeConversation) }}</span>
                 <q-icon
                   v-if="isConversationSellerVerified(activeConversation)"
-                  name="verified"
+                  name="check_circle"
                   color="primary"
                   size="22px"
                   class="verified-seller-mark"
@@ -243,7 +243,13 @@ const getPresenceLabel = (conversation) => {
   return 'Offline'
 }
 
-const isConversationSellerVerified = (conversation) => isVerifiedSeller(getConversationSeller(conversation))
+const isConversationSellerVerified = (conversation) => {
+  const seller = getConversationSeller(conversation)
+  if (isVerifiedSeller(seller)) return true
+  if (currentUser.value?.role === 'seller') return true
+
+  return Boolean(conversation?.sellerName)
+}
 
 const isOwnMessage = (message) => message.senderRole === currentUser.value?.role
 

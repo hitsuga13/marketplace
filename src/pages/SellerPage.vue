@@ -14,7 +14,7 @@
                 <span>{{ currentUser?.name || 'Campus Seller' }}</span>
                 <q-icon
                   v-if="isSellerVerified(currentUser)"
-                  name="verified"
+                  name="check_circle"
                   color="primary"
                   size="24px"
                   class="verified-seller-mark"
@@ -230,7 +230,7 @@
               <span>{{ currentUser?.name || 'Seller' }}</span>
               <q-icon
                 v-if="isSellerVerified(currentUser)"
-                name="verified"
+                name="check_circle"
                 color="primary"
                 size="18px"
               />
