@@ -77,6 +77,10 @@
                   <q-item-label v-if="getOrderOptionText(order)" caption>
                     {{ getOrderOptionText(order) }}
                   </q-item-label>
+                  <q-item-label caption class="text-primary">
+                    {{ getPaymentMethodLabel(order.paymentMethod) }} -
+                    {{ order.paymentReference || 'No reference' }}
+                  </q-item-label>
                   <q-item-label caption>{{ formatDate(order.createdAt) }}</q-item-label>
                 </q-item-section>
                 <q-item-section side>
@@ -534,6 +538,7 @@ import { useQuasar } from 'quasar'
 import ImageCropDialog from 'src/components/ImageCropDialog.vue'
 import { getUploadSizeError } from 'src/utils/fileValidation'
 import { normalizeStoredImage } from 'src/utils/assets'
+import { getPaymentMethodLabel } from 'src/utils/paymentGateway'
 import {
   addMessage,
   getConversationSummaries,

@@ -69,6 +69,10 @@
                 <q-item-label v-if="getOrderOptionText(order)" caption>
                   {{ getOrderOptionText(order) }}
                 </q-item-label>
+                <q-item-label caption class="text-primary">
+                  {{ getPaymentMethodLabel(order.paymentMethod) }} -
+                  {{ order.paymentReference || 'No reference' }}
+                </q-item-label>
                 <q-item-label caption>{{ formatDate(order.createdAt) }}</q-item-label>
                 <q-linear-progress
                   :value="getOrderProgress(order.status)"
@@ -144,6 +148,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useQuasar } from 'quasar'
 import { normalizeStoredImage } from 'src/utils/assets'
+import { getPaymentMethodLabel } from 'src/utils/paymentGateway'
 import {
   cartCount,
   getBuyerOrders,

@@ -388,9 +388,9 @@
       <q-card class="payment-qr-card">
         <q-card-section class="text-center">
           <q-avatar color="primary" text-color="white" size="58px">
-            <q-icon name="qr_code_2" size="34px" />
+            <q-icon name="payments" size="34px" />
           </q-avatar>
-          <div class="text-h6 text-weight-bold q-mt-md">Pay Seller via QR</div>
+          <div class="text-h6 text-weight-bold q-mt-md">Secure Manual Payment</div>
           <div class="text-grey-7 row items-center justify-center q-gutter-xs">
             <span>{{ selectedItem.vendor || 'Campus Seller' }}</span>
             <q-icon
@@ -404,6 +404,29 @@
             RM {{ finalPrice.toFixed(2) }}
           </div>
 
+          <q-option-group
+            v-model="paymentMethod"
+            :options="paymentMethods"
+            color="primary"
+            type="radio"
+            class="payment-method-picker q-mt-md"
+          />
+
+          <q-input
+            v-model="paymentReference"
+            outlined
+            dense
+            label="Transaction reference"
+            class="q-mt-md"
+            :error="paymentReferenceTouched && !isValidPaymentReference(paymentReference)"
+            error-message="Enter at least 4 characters from your bank/e-wallet receipt."
+            @blur="paymentReferenceTouched = true"
+          >
+            <template v-slot:prepend>
+              <q-icon name="tag" color="primary" />
+            </template>
+          </q-input>
+
           <div class="payment-qr-box q-mt-md">
             <q-img v-if="sellerPaymentQr" :src="sellerPaymentQr" ratio="1" fit="contain" />
             <div v-else class="payment-qr-empty">
@@ -413,7 +436,7 @@
           </div>
 
           <p class="text-grey-7 q-mt-md q-mb-md">
-            Scan the QR, complete payment, upload your receipt, then click the button below.
+            Complete payment, enter the reference shown in your receipt, upload proof, then submit.
           </p>
 
           <input
@@ -440,7 +463,7 @@
             color="primary"
             icon="check_circle"
             label="I have paid"
-            :disable="!paymentReceipt"
+            :disable="!buyNowPaymentReady"
             @click="confirmBuyNowPayment"
           />
         </q-card-actions>
@@ -455,6 +478,11 @@ import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { getUploadSizeError } from 'src/utils/fileValidation'
 import { getPublicAsset, normalizeStoredImage } from 'src/utils/assets'
+import {
+  createPaymentReference,
+  isValidPaymentReference,
+  paymentMethods,
+} from 'src/utils/paymentGateway'
 import {
   addMessage,
   addToCart,
@@ -482,6 +510,9 @@ const loginRequiredDialog = ref(false)
 const chatDialog = ref(false)
 const paymentDialog = ref(false)
 const chatText = ref('')
+const paymentMethod = ref('duitnow_qr')
+const paymentReference = ref('')
+const paymentReferenceTouched = ref(false)
 const paymentReceipt = ref('')
 const receiptFileName = ref('')
 const receiptInput = ref(null)
@@ -539,6 +570,9 @@ const selectedSeller = computed(() => {
 })
 const sellerPaymentQr = computed(() => selectedSeller.value?.paymentQr || '')
 const getImageSrc = (src) => normalizeStoredImage(src)
+const buyNowPaymentReady = computed(
+  () => Boolean(paymentReceipt.value) && isValidPaymentReference(paymentReference.value),
+)
 const isSellerVerified = (seller, product = null) => {
   if (isVerifiedSeller(seller)) return true
   const sellerName = product?.vendor || product?.seller
@@ -827,6 +861,9 @@ const handleBuyNow = () => {
 
   paymentReceipt.value = ''
   receiptFileName.value = ''
+  paymentMethod.value = 'duitnow_qr'
+  paymentReference.value = createPaymentReference('BUY')
+  paymentReferenceTouched.value = false
   paymentDialog.value = true
 }
 
@@ -856,7 +893,8 @@ const handleReceiptUpload = (event) => {
 
 const confirmBuyNowPayment = () => {
   const currentUser = getCurrentUser()
-  if (!paymentReceipt.value || !currentUser) return
+  paymentReferenceTouched.value = true
+  if (!buyNowPaymentReady.value || !currentUser) return
 
   createOrder({
     buyerId: currentUser.id,
@@ -868,6 +906,9 @@ const confirmBuyNowPayment = () => {
     quantity: 1,
     selectedVariation: selectedVar.value?.label || '',
     selectedAddons: selectedAddons.value.map((addon) => ({ ...addon })),
+    paymentMethod: paymentMethod.value,
+    paymentReference: paymentReference.value.trim(),
+    paymentStatus: 'Pending Seller Verification',
     receipt: paymentReceipt.value,
     receiptFileName: receiptFileName.value,
   })
@@ -878,6 +919,8 @@ const confirmBuyNowPayment = () => {
   detailsModal.value = false
   paymentReceipt.value = ''
   receiptFileName.value = ''
+  paymentReference.value = ''
+  paymentReferenceTouched.value = false
   $q.notify({
     color: 'primary',
     icon: 'receipt_long',

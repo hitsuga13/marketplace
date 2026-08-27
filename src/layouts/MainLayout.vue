@@ -414,10 +414,10 @@
         <q-card-section>
           <div class="multi-seller-checkout-header">
             <q-avatar color="primary" text-color="white" size="58px">
-              <q-icon name="qr_code_2" size="34px" />
+              <q-icon name="payments" size="34px" />
             </q-avatar>
             <div>
-              <div class="text-h6 text-weight-bold">Pay Seller via QR</div>
+              <div class="text-h6 text-weight-bold">Secure Manual Checkout</div>
               <div class="text-grey-7">
                 {{ checkoutGroups.length }} seller(s), {{ checkoutSelectedCount }} item(s) selected
               </div>
@@ -428,6 +428,14 @@
             <span>Total selected payment</span>
             <strong>RM {{ checkoutSubtotal.toFixed(2) }}</strong>
           </div>
+
+          <q-option-group
+            v-model="checkoutPaymentMethod"
+            :options="paymentMethods"
+            color="primary"
+            type="radio"
+            class="payment-method-picker q-mt-md"
+          />
 
           <div class="multi-seller-checkout-list q-mt-md">
             <div v-for="group in checkoutGroups" :key="group.sellerKey" class="seller-payment-card">
@@ -479,6 +487,20 @@
               </div>
 
               <div class="seller-payment-card__receipt q-mt-md">
+                <q-input
+                  :model-value="getGroupPaymentReference(group)"
+                  outlined
+                  dense
+                  label="Transaction reference"
+                  class="q-mb-sm"
+                  :error="!isValidPaymentReference(getGroupPaymentReference(group))"
+                  error-message="Enter at least 4 characters from this seller payment receipt."
+                  @update:model-value="(value) => setGroupPaymentReference(group, value)"
+                >
+                  <template v-slot:prepend>
+                    <q-icon name="tag" color="primary" />
+                  </template>
+                </q-input>
                 <input
                   :ref="(element) => setGroupReceiptInput(group.sellerKey, element)"
                   type="file"
@@ -502,8 +524,8 @@
           </div>
 
           <p class="text-grey-7 q-mt-md q-mb-md">
-            Scan each seller QR, complete payment, upload each seller receipt proof, then click the
-            button below.
+            Complete each seller payment, enter the reference from every receipt, upload proof, then
+            submit.
           </p>
           <div class="checkout-receipt-status">
             {{ uploadedCheckoutReceiptCount }} / {{ checkoutGroups.length }} receipt(s) uploaded
@@ -532,6 +554,11 @@ import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { getUploadSizeError } from 'src/utils/fileValidation'
 import { getPublicAsset, normalizeStoredImage } from 'src/utils/assets'
+import {
+  createPaymentReference,
+  isValidPaymentReference,
+  paymentMethods,
+} from 'src/utils/paymentGateway'
 import { isSupabaseConfigured, supabase } from 'src/supabase/client'
 import {
   cart,
@@ -561,6 +588,8 @@ export default defineComponent({
     const checkoutDialog = ref(false)
     const showFooterMap = ref(false)
     const searchQuery = ref('')
+    const checkoutPaymentMethod = ref('duitnow_qr')
+    const groupPaymentReferences = ref({})
     const groupReceipts = ref({})
     const groupReceiptInputs = ref({})
     const checkoutItemsSnapshot = ref([])
@@ -905,12 +934,17 @@ export default defineComponent({
       if (!validateSelectedCartStock()) return
 
       groupReceipts.value = {}
+      groupPaymentReferences.value = {}
       groupReceiptInputs.value = {}
+      checkoutPaymentMethod.value = 'duitnow_qr'
       checkoutItemsSnapshot.value = selectedCartItems.value.map((item) => ({
         ...item,
         selectedVar: item.selectedVar ? { ...item.selectedVar } : null,
         selectedAddons: item.selectedAddons?.map((addon) => ({ ...addon })) || [],
       }))
+      checkoutGroups.value.forEach((group) => {
+        setGroupPaymentReference(group, createPaymentReference('CART'))
+      })
       cartPanelOpen.value = false
       await nextTick()
       checkoutDialog.value = true
@@ -925,6 +959,20 @@ export default defineComponent({
 
     const getGroupReceipt = (group) =>
       groupReceipts.value[group?.sellerKey] || groupReceipts.value[group?.sellerName]
+
+    const getGroupPaymentReference = (group) =>
+      groupPaymentReferences.value[group?.sellerKey] ||
+      groupPaymentReferences.value[group?.sellerName] ||
+      ''
+
+    const setGroupPaymentReference = (group, value) => {
+      const paymentReference = String(value || '')
+      groupPaymentReferences.value = {
+        ...groupPaymentReferences.value,
+        [group.sellerKey]: paymentReference,
+        [group.sellerName]: paymentReference,
+      }
+    }
 
     const handleGroupReceiptUpload = (group, event) => {
       const file = event?.target?.files?.[0]
@@ -961,7 +1009,11 @@ export default defineComponent({
     const allCheckoutReceiptsUploaded = computed(
       () =>
         checkoutGroups.value.length > 0 &&
-        checkoutGroups.value.every((group) => getGroupReceipt(group)?.receipt),
+        checkoutGroups.value.every(
+          (group) =>
+            getGroupReceipt(group)?.receipt &&
+            isValidPaymentReference(getGroupPaymentReference(group)),
+        ),
     )
     const uploadedCheckoutReceiptCount = computed(
       () => checkoutGroups.value.filter((group) => getGroupReceipt(group)?.receipt).length,
@@ -969,14 +1021,23 @@ export default defineComponent({
     const cartReceiptsReady = computed(
       () =>
         checkoutGroups.value.length > 0 &&
-        uploadedCheckoutReceiptCount.value === checkoutGroups.value.length,
+        checkoutGroups.value.every(
+          (group) =>
+            getGroupReceipt(group)?.receipt &&
+            isValidPaymentReference(getGroupPaymentReference(group)),
+        ),
     )
 
     const notifyMissingCheckoutReceipt = () => {
       const missingSeller = checkoutGroups.value.find((group) => !getGroupReceipt(group)?.receipt)
+      const missingReferenceSeller = checkoutGroups.value.find(
+        (group) => !isValidPaymentReference(getGroupPaymentReference(group)),
+      )
       $q.notify({
         type: 'negative',
-        message: `Please upload receipt for ${missingSeller?.sellerName || 'every seller'} first.`,
+        message: missingReferenceSeller
+          ? `Please enter transaction reference for ${missingReferenceSeller.sellerName}.`
+          : `Please upload receipt for ${missingSeller?.sellerName || 'every seller'} first.`,
         position: 'top',
       })
     }
@@ -985,6 +1046,7 @@ export default defineComponent({
       if (checkoutDialog.value) return
 
       groupReceipts.value = {}
+      groupPaymentReferences.value = {}
       groupReceiptInputs.value = {}
       checkoutItemsSnapshot.value = []
     }
@@ -1004,9 +1066,16 @@ export default defineComponent({
             const sellerReceipt =
               groupReceipts.value[getSellerReceiptKey(sellerName)] ||
               groupReceipts.value[sellerName]
+            const paymentReference =
+              groupPaymentReferences.value[getSellerReceiptKey(sellerName)] ||
+              groupPaymentReferences.value[sellerName] ||
+              ''
             return {
               receipt: sellerReceipt?.receipt || '',
               receiptFileName: sellerReceipt?.fileName || '',
+              paymentMethod: checkoutPaymentMethod.value,
+              paymentReference: paymentReference.trim(),
+              paymentStatus: 'Pending Seller Verification',
             }
           })(),
           buyerId: currentUser.value.id,
@@ -1025,6 +1094,7 @@ export default defineComponent({
       clearSelectedCartItems()
       checkoutDialog.value = false
       groupReceipts.value = {}
+      groupPaymentReferences.value = {}
       groupReceiptInputs.value = {}
       $q.notify({
         color: 'primary',
@@ -1066,6 +1136,8 @@ export default defineComponent({
       checkoutDialog,
       showFooterMap,
       searchQuery,
+      checkoutPaymentMethod,
+      groupPaymentReferences,
       groupReceipts,
       groupReceiptInputs,
       currentUser,
@@ -1089,6 +1161,8 @@ export default defineComponent({
       getPriceDisplay,
       getPublicAsset,
       getImageSrc,
+      paymentMethods,
+      isValidPaymentReference,
       quickOpenProduct,
       seeAllResults,
       openCartPanel,
@@ -1098,6 +1172,8 @@ export default defineComponent({
       openCheckout,
       setGroupReceiptInput,
       getGroupReceipt,
+      getGroupPaymentReference,
+      setGroupPaymentReference,
       handleGroupReceiptUpload,
       resetCheckoutState,
       confirmCartPayment,
