@@ -500,6 +500,7 @@ import { useQuasar } from 'quasar'
 import ImageCropDialog from 'src/components/ImageCropDialog.vue'
 import { getUploadSizeError } from 'src/utils/fileValidation'
 import { getPublicAsset } from 'src/utils/assets'
+import { isSupabaseConfigured, supabase } from 'src/supabase/client'
 import {
   generateRecoveryCode,
   getCurrentUser,
@@ -656,36 +657,89 @@ const setMessage = (text, type = 'info') => {
   messageType.value = type
 }
 
-const handleLogin = () => {
+const findUserByEmailAndRole = (email, role) =>
+  users.value.find(
+    (item) => item.email.toLowerCase() === email.toLowerCase() && item.role === role,
+  )
+
+const fetchProfileForAuthUser = async (authUser, role) => {
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('auth_id', authUser.id)
+    .eq('role', role)
+    .maybeSingle()
+
+  if (error) throw error
+  return data
+}
+
+const mapSupabaseUser = (user) => ({
+  id: user.local_id || user.id,
+  authId: user.auth_id || '',
+  name: user.name,
+  email: user.email,
+  phone: user.phone || '',
+  password: '',
+  role: user.role,
+  avatar: user.avatar || '',
+  paymentQr: user.payment_qr || '',
+  businessHours: user.business_hours || '',
+  pickupAddress: user.pickup_address || '',
+  recoveryCode: user.recovery_code || '',
+  verifiedSeller: user.role === 'seller' ? user.verified_seller !== false : false,
+  presenceStatus: user.presence_status || 'offline',
+  lastSeenAt: user.last_seen_at || '',
+  active: user.active !== false,
+})
+
+const upsertLocalUser = (user) => {
+  const index = users.value.findIndex((item) => String(item.id) === String(user.id))
+  if (index > -1) users.value[index] = user
+  else users.value.push(user)
+}
+
+const handleLogin = async () => {
   message.value = ''
   loading.value = true
 
-  const user = users.value.find(
-    (item) =>
-      item.email.toLowerCase() === loginForm.value.email.toLowerCase() &&
-      item.password === loginForm.value.password &&
-      item.role === loginForm.value.role,
-  )
+  const email = loginForm.value.email.trim().toLowerCase()
+  const password = loginForm.value.password
+  let user = null
 
-  loading.value = false
+  try {
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+      if (error) throw error
 
-  if (!user) {
-    setMessage('Invalid email, password, or role.', 'error')
-    return
+      const profile = await fetchProfileForAuthUser(data.user, loginForm.value.role)
+      if (!profile) throw new Error('No profile found for that email and role.')
+      user = mapSupabaseUser(profile)
+      upsertLocalUser(user)
+    } else {
+      user = users.value.find(
+        (item) =>
+          item.email.toLowerCase() === email &&
+          item.password === password &&
+          item.role === loginForm.value.role,
+      )
+    }
+
+    if (!user) throw new Error('Invalid email, password, or role.')
+    if (!user.active) throw new Error('This account has been suspended by admin.')
+
+    currentUser.value = user
+    if (user.role === 'seller') markCurrentUserPresence('online', user)
+    setMessage(`Logged in as ${user.name}.`, 'success')
+    router.push(getRoleHome(user.role))
+  } catch (error) {
+    setMessage(error?.message || 'Invalid email, password, or role.', 'error')
+  } finally {
+    loading.value = false
   }
-
-  if (!user.active) {
-    setMessage('This account has been suspended by admin.', 'error')
-    return
-  }
-
-  currentUser.value = user
-  if (user.role === 'seller') markCurrentUserPresence('online', user)
-  setMessage(`Logged in as ${user.name}.`, 'success')
-  router.push(getRoleHome(user.role))
 }
 
-const handleRegister = () => {
+const handleRegister = async () => {
   message.value = ''
   loading.value = true
 
@@ -694,47 +748,60 @@ const handleRegister = () => {
   const email = registerForm.value.email.trim().toLowerCase()
   const password = registerForm.value.password
 
-  loading.value = false
-
   if (!name || !phone || !email || !password) {
     setMessage('Please fill in name, phone number, email, and password.', 'error')
+    loading.value = false
     return
   }
 
-  const exists = users.value.some((user) => user.email.toLowerCase() === email)
-  if (exists) {
-    setMessage('Account already exists. Please log in.', 'error')
-    return
-  }
+  try {
+    const exists = findUserByEmailAndRole(email, registerForm.value.role)
+    if (exists) throw new Error('Account already exists. Please log in.')
 
-  const recoveryCode = generateRecoveryCode()
-  const newUser = {
-    id: Date.now(),
-    name,
-    phone,
-    email,
-    password,
-    role: registerForm.value.role,
-    avatar: '',
-    paymentQr: '',
-    recoveryCode,
-    active: true,
-  }
+    const recoveryCode = generateRecoveryCode()
+    const newUser = {
+      id: Date.now(),
+      authId: '',
+      name,
+      phone,
+      email,
+      password: isSupabaseConfigured ? '' : password,
+      role: registerForm.value.role,
+      avatar: '',
+      paymentQr: '',
+      recoveryCode,
+      active: true,
+    }
 
-  users.value.push(newUser)
-  currentUser.value = newUser
-  if (newUser.role === 'seller') markCurrentUserPresence('online', newUser)
-  authMode.value = 'login'
-  loginForm.value = {
-    role: newUser.role,
-    email: newUser.email,
-    password: newUser.password,
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { name, role: registerForm.value.role } },
+      })
+      if (error) throw error
+      newUser.authId = data.user?.id || ''
+    }
+
+    users.value.push(newUser)
+    currentUser.value = newUser
+    if (newUser.role === 'seller') markCurrentUserPresence('online', newUser)
+    authMode.value = 'login'
+    loginForm.value = {
+      role: newUser.role,
+      email: newUser.email,
+      password,
+    }
+    registerForm.value = { role: 'buyer', name: '', phone: '', email: '', password: '' }
+    setMessage(`${newUser.role.toUpperCase()} account registered and logged in.`, 'success')
+    recoveryCodeToShow.value = recoveryCode
+    recoveryNoticeType.value = 'signup'
+    recoveryCodeDialog.value = true
+  } catch (error) {
+    setMessage(error?.message || 'Unable to register account.', 'error')
+  } finally {
+    loading.value = false
   }
-  registerForm.value = { role: 'buyer', name: '', phone: '', email: '', password: '' }
-  setMessage(`${newUser.role.toUpperCase()} account registered and logged in.`, 'success')
-  recoveryCodeToShow.value = recoveryCode
-  recoveryNoticeType.value = 'signup'
-  recoveryCodeDialog.value = true
 }
 
 const getSelectedFile = (eventOrFile) => eventOrFile?.target?.files?.[0] || eventOrFile
@@ -892,6 +959,13 @@ const resetPasswordWithRecoveryCode = () => {
     return
   }
 
+  if (isSupabaseConfigured) {
+    forgotMessage.value =
+      'Password reset is handled by Supabase Auth. Contact admin to reset this account password.'
+    forgotMessageType.value = 'error'
+    return
+  }
+
   const user = users.value.find(
     (item) => item.email.toLowerCase() === email && item.role === forgotForm.value.role,
   )
@@ -964,6 +1038,7 @@ const finishRecoveryCodeNotice = () => {
 
 const handleLogout = () => {
   markCurrentUserPresence('offline')
+  if (isSupabaseConfigured && supabase) supabase.auth.signOut()
   currentUser.value = null
   setMessage('Logged out successfully.', 'success')
   router.push('/main')

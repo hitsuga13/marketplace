@@ -629,6 +629,16 @@ export default defineComponent({
 
       if (!isRecipient) return
 
+      if (!message.delivered_at && supabase) {
+        const { error } = await supabase
+          .from('chat_messages')
+          .update({ delivered_at: new Date().toISOString() })
+          .eq('id', message.id)
+          .is('delivered_at', null)
+
+        if (error) console.warn('Unable to update message delivery receipt', error)
+      }
+
       const senderName = message.sender_role === 'buyer' ? message.buyer_name : message.seller_name
 
       $q.notify({

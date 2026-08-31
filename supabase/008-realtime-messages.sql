@@ -14,8 +14,14 @@ create table if not exists public.chat_messages (
   seller_name text not null,
   sender_role text not null check (sender_role in ('buyer', 'seller')),
   message text not null,
+  delivered_at timestamptz,
+  read_at timestamptz,
   created_at timestamptz not null default now()
 );
+
+alter table public.chat_messages
+  add column if not exists delivered_at timestamptz,
+  add column if not exists read_at timestamptz;
 
 create index if not exists chat_messages_conversation_id_idx
   on public.chat_messages (conversation_id);

@@ -53,6 +53,7 @@ const refreshWhenVisible = () => {
 
 const refreshPresence = () => {
   const currentUser = getCurrentUser()
+  refreshSupabaseCache()
   if (currentUser?.role === 'seller') {
     markCurrentUserPresence(document.visibilityState === 'visible' ? 'online' : 'idle')
   }

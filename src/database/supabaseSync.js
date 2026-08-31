@@ -26,6 +26,72 @@ const ORDER_LIST_COLUMNS = [
   'created_at',
   'updated_at',
 ].join(',')
+const USER_LIST_COLUMNS = [
+  'id',
+  'local_id',
+  'auth_id',
+  'name',
+  'email',
+  'phone',
+  'password',
+  'role',
+  'avatar',
+  'payment_qr',
+  'business_hours',
+  'pickup_address',
+  'recovery_code',
+  'verified_seller',
+  'presence_status',
+  'last_seen_at',
+  'active',
+  'created_at',
+  'updated_at',
+].join(',')
+const PRODUCT_LIST_COLUMNS = [
+  'id',
+  'local_id',
+  'seller_id',
+  'seller_local_id',
+  'seller',
+  'vendor',
+  'category',
+  'name',
+  'image',
+  'price',
+  'stock',
+  'desc1',
+  'variations',
+  'addons',
+  'moderation_status',
+  'moderation_decision',
+  'moderation_reason',
+  'moderation_confidence',
+  'moderation_categories',
+  'moderation_checked_at',
+  'reviewed_by',
+  'reviewed_at',
+  'review_note',
+  'active',
+  'created_at',
+  'updated_at',
+].join(',')
+const CHAT_LIST_COLUMNS = [
+  'id',
+  'local_id',
+  'conversation_id',
+  'product_id',
+  'product_local_id',
+  'product_name',
+  'buyer_id',
+  'buyer_local_id',
+  'buyer_name',
+  'seller_name',
+  'sender_role',
+  'message',
+  'delivered_at',
+  'read_at',
+  'created_at',
+].join(',')
 
 const parseLocalId = (value) => {
   const text = String(value ?? '')
@@ -71,6 +137,7 @@ const assertSupabaseOk = ({ error }, action) => {
 const toSupabaseUser = (user) => ({
   id: Number.isSafeInteger(Number(user.id)) ? Number(user.id) : undefined,
   local_id: String(user.id),
+  auth_id: user.authId || user.auth_id || undefined,
   name: user.name || '',
   email: String(user.email || '').toLowerCase(),
   phone: user.phone || '',
@@ -89,6 +156,7 @@ const toSupabaseUser = (user) => ({
 
 const fromSupabaseUser = (user) => ({
   id: parseLocalId(user.local_id || user.id),
+  authId: user.auth_id || '',
   name: user.name,
   email: user.email,
   phone: user.phone || '',
@@ -119,6 +187,16 @@ const toSupabaseProduct = (product) => ({
   desc1: product.desc1 || product.description || '',
   variations: safeArray(product.variations),
   addons: safeArray(product.addons),
+  moderation_status: product.moderationStatus || 'approved',
+  moderation_decision: product.moderationDecision || 'auto_approved',
+  moderation_reason: product.moderationReason || '',
+  moderation_confidence:
+    product.moderationConfidence === undefined ? null : Number(product.moderationConfidence),
+  moderation_categories: safeArray(product.moderationCategories),
+  moderation_checked_at: product.moderationCheckedAt || null,
+  reviewed_by: product.reviewedBy || null,
+  reviewed_at: product.reviewedAt || null,
+  review_note: product.reviewNote || '',
   active: product.active !== false,
 })
 
@@ -135,8 +213,32 @@ const fromSupabaseProduct = (product) => ({
   desc1: product.desc1,
   variations: safeArray(product.variations),
   addons: safeArray(product.addons),
+  moderationStatus: product.moderation_status || 'approved',
+  moderationDecision: product.moderation_decision || 'auto_approved',
+  moderationReason: product.moderation_reason || '',
+  moderationConfidence:
+    product.moderation_confidence === null || product.moderation_confidence === undefined
+      ? null
+      : Number(product.moderation_confidence),
+  moderationCategories: safeArray(product.moderation_categories),
+  moderationCheckedAt: product.moderation_checked_at || '',
+  reviewedBy: product.reviewed_by || '',
+  reviewedAt: product.reviewed_at || '',
+  reviewNote: product.review_note || '',
   active: product.active !== false,
 })
+
+const productHasExistingSeller = (product, users = loadState('upnm-users', [])) => {
+  const sellers = users.filter((user) => user.role === 'seller' && user.active !== false)
+  if (product.seller_local_id && sellers.some((seller) => String(seller.id) === String(product.seller_local_id))) {
+    return true
+  }
+
+  return sellers.some(
+    (seller) =>
+      seller.name.toLowerCase() === String(product.vendor || product.seller || '').toLowerCase(),
+  )
+}
 
 const toSupabaseOrder = (order) => {
   const row = {
@@ -207,6 +309,8 @@ const toSupabaseMessage = (message) => ({
   seller_name: message.sellerName || 'Campus Seller',
   sender_role: message.senderRole,
   message: message.text || '',
+  delivered_at: message.deliveredAt || null,
+  read_at: message.readAt || null,
   created_at: message.createdAt || new Date().toISOString(),
 })
 
@@ -224,18 +328,58 @@ const fromSupabaseMessage = (message) => ({
   sellerName: message.seller_name,
   senderRole: message.sender_role,
   text: message.message,
+  deliveredAt: message.delivered_at || '',
+  readAt: message.read_at || '',
   createdAt: message.created_at,
 })
+
+const getSyncActor = () => loadState('upnm-current-user', null)
+
+const isAdminActor = (actor) => actor?.role === 'admin'
+
+const isOwnUser = (user, actor = getSyncActor()) =>
+  isAdminActor(actor) || (actor && String(user.id) === String(actor.id))
+
+const isOwnProduct = (product, actor = getSyncActor()) =>
+  isAdminActor(actor) ||
+  (actor?.role === 'seller' &&
+    (String(product.sellerId || '') === String(actor.id) ||
+      String(product.sellerLocalId || '') === String(actor.id) ||
+      String(product.vendor || product.seller || '').toLowerCase() ===
+        String(actor.name || '').toLowerCase()))
+
+const isOwnOrder = (order, actor = getSyncActor()) =>
+  isAdminActor(actor) ||
+  (actor?.role === 'buyer' &&
+    (String(order.buyerId || '') === String(actor.id) ||
+      String(order.buyerLocalId || '') === String(actor.id))) ||
+  (actor?.role === 'seller' &&
+    String(order.vendor || '').toLowerCase() === String(actor.name || '').toLowerCase())
+
+const isOwnMessage = (message, actor = getSyncActor()) =>
+  isAdminActor(actor) ||
+  (actor?.role === 'buyer' &&
+    (String(message.buyerId || '') === String(actor.id) ||
+      String(message.buyerLocalId || '') === String(actor.id))) ||
+  (actor?.role === 'seller' &&
+    String(message.sellerName || '').toLowerCase() === String(actor.name || '').toLowerCase())
 
 export const initializeSupabaseCache = async () => {
   if (!isSupabaseConfigured || !supabase) return false
 
   try {
     const [usersResult, productsResult, ordersResult, messagesResult] = await Promise.all([
-      supabase.from('users').select('*').order('created_at', { ascending: true }),
-      supabase.from('products').select('*').order('created_at', { ascending: false }),
+      supabase.from('users').select(USER_LIST_COLUMNS).order('created_at', { ascending: true }),
+      supabase
+        .from('products')
+        .select(PRODUCT_LIST_COLUMNS)
+        .order('created_at', { ascending: false }),
       supabase.from('orders').select(ORDER_LIST_COLUMNS).order('created_at', { ascending: false }),
-      supabase.from('chat_messages').select('*').order('created_at', { ascending: true }),
+      supabase
+        .from('chat_messages')
+        .select(CHAT_LIST_COLUMNS)
+        .order('created_at', { ascending: true })
+        .limit(500),
     ])
 
     assertSupabaseOk(usersResult, 'Load users')
@@ -247,13 +391,20 @@ export const initializeSupabaseCache = async () => {
     const { data: products } = productsResult
     const { data: orders } = ordersResult
     const { data: messages } = messagesResult
+    const mappedUsers = users?.map(fromSupabaseUser) || []
 
     if (users) {
-      const mappedUsers = users.map(fromSupabaseUser)
       saveState('upnm-users', mappedUsers)
       syncCurrentUserFromUsers(mappedUsers)
     }
-    if (products) saveState('upnm-seller-products', products.map(fromSupabaseProduct))
+    if (products) {
+      saveState(
+        'upnm-seller-products',
+        products
+          .filter((product) => productHasExistingSeller(product, mappedUsers))
+          .map(fromSupabaseProduct),
+      )
+    }
     if (orders) saveState('upnm-buyer-orders', orders.map(fromSupabaseOrder))
     if (messages) saveState('upnm-chats', messages.map(fromSupabaseMessage))
 
@@ -297,7 +448,8 @@ export const fetchOrderReceipt = async (orderId) => {
 
 export const syncUsersToSupabase = (users) =>
   queueSync('users', async () => {
-    const rows = users.map(toSupabaseUser)
+    const actor = getSyncActor()
+    const rows = users.filter((user) => isOwnUser(user, actor)).map(toSupabaseUser)
     if (rows.length === 0) return
     assertSupabaseOk(
       await supabase.from('users').upsert(rows, { onConflict: 'local_id' }),
@@ -307,7 +459,8 @@ export const syncUsersToSupabase = (users) =>
 
 export const syncProductsToSupabase = (products) =>
   queueSync('products', async () => {
-    const rows = products.map(toSupabaseProduct)
+    const actor = getSyncActor()
+    const rows = products.filter((product) => isOwnProduct(product, actor)).map(toSupabaseProduct)
 
     if (rows.length > 0) {
       assertSupabaseOk(
@@ -319,7 +472,8 @@ export const syncProductsToSupabase = (products) =>
 
 export const syncOrdersToSupabase = (orders) =>
   queueSync('orders', async () => {
-    const rows = orders.map(toSupabaseOrder)
+    const actor = getSyncActor()
+    const rows = orders.filter((order) => isOwnOrder(order, actor)).map(toSupabaseOrder)
     if (rows.length === 0) return
     assertSupabaseOk(
       await supabase.from('orders').upsert(rows, { onConflict: 'local_id' }),
@@ -329,7 +483,8 @@ export const syncOrdersToSupabase = (orders) =>
 
 export const syncChatsToSupabase = (messages) =>
   queueSync('chat_messages', async () => {
-    const rows = messages.map(toSupabaseMessage)
+    const actor = getSyncActor()
+    const rows = messages.filter((message) => isOwnMessage(message, actor)).map(toSupabaseMessage)
     if (rows.length === 0) return
     assertSupabaseOk(
       await supabase.from('chat_messages').upsert(rows, { onConflict: 'local_id' }),

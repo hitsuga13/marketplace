@@ -139,6 +139,83 @@
       </div>
     </section>
 
+    <section class="role-band">
+      <q-card flat bordered class="role-card">
+        <q-card-section>
+          <div class="row items-center justify-between">
+            <div>
+              <div class="text-h6 text-weight-bold">AI Product Moderation</div>
+              <div class="text-grey-7">Review products flagged by built-in AI safety checks.</div>
+            </div>
+            <q-chip
+              color="warning"
+              text-color="white"
+              icon="policy"
+              :label="`${pendingModerationProducts.length} Pending Review`"
+            />
+          </div>
+
+          <q-list v-if="moderatedProducts.length" separator class="q-mt-md">
+            <q-item v-for="product in moderatedProducts" :key="product.id">
+              <q-item-section avatar>
+                <q-avatar square rounded>
+                  <img :src="getImageSrc(product.image)" :alt="product.name" />
+                </q-avatar>
+              </q-item-section>
+              <q-item-section>
+                <q-item-label class="text-weight-bold">{{ product.name }}</q-item-label>
+                <q-item-label caption>{{ product.vendor }} / {{ product.category }}</q-item-label>
+                <q-item-label caption>
+                  {{ product.moderationReason || 'No moderation reason recorded.' }}
+                </q-item-label>
+                <q-item-label caption>
+                  Confidence:
+                  {{
+                    product.moderationConfidence === null ||
+                    product.moderationConfidence === undefined
+                      ? '-'
+                      : `${Math.round(Number(product.moderationConfidence) * 100)}%`
+                  }}
+                </q-item-label>
+              </q-item-section>
+              <q-item-section side>
+                <q-chip
+                  dense
+                  :color="getModerationStatusColor(product.moderationStatus)"
+                  text-color="white"
+                  :label="getModerationStatusLabel(product.moderationStatus)"
+                />
+              </q-item-section>
+              <q-item-section side class="admin-order-actions">
+                <q-btn
+                  dense
+                  unelevated
+                  color="positive"
+                  icon="check_circle"
+                  label="Approve"
+                  no-caps
+                  @click="reviewProduct(product.id, 'approved')"
+                />
+                <q-btn
+                  dense
+                  flat
+                  color="negative"
+                  icon="block"
+                  label="Reject"
+                  no-caps
+                  @click="reviewProduct(product.id, 'rejected')"
+                />
+              </q-item-section>
+            </q-item>
+          </q-list>
+
+          <q-banner v-else class="role-banner q-mt-md">
+            No products waiting for moderation review.
+          </q-banner>
+        </q-card-section>
+      </q-card>
+    </section>
+
     <section class="role-band admin-grid">
       <q-card flat bordered class="role-card">
         <q-card-section>
@@ -172,9 +249,17 @@
               <q-item-section>
                 <q-item-label class="text-weight-bold">{{ product.name }}</q-item-label>
                 <q-item-label caption>{{ product.vendor }} / {{ product.category }}</q-item-label>
+                <q-item-label caption>
+                  {{ getModerationStatusLabel(product.moderationStatus) }}
+                </q-item-label>
               </q-item-section>
               <q-item-section side>
-                <q-toggle v-model="product.active" color="primary" @update:model-value="saveProducts" />
+                <q-toggle
+                  v-model="product.active"
+                  color="primary"
+                  :disable="product.moderationStatus !== moderationStatuses.approved"
+                  @update:model-value="saveProducts"
+                />
               </q-item-section>
               <q-item-section side>
                 <q-btn flat round color="negative" icon="delete" @click="deleteProduct(product.id)" />
@@ -290,6 +375,11 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useQuasar } from 'quasar'
 import { normalizeStoredImage } from 'src/utils/assets'
 import {
+  getModerationStatusColor,
+  getModerationStatusLabel,
+  moderationStatuses,
+} from 'src/utils/productModeration'
+import {
   getOrders,
   getSellerProducts,
   getUsers,
@@ -321,6 +411,18 @@ const reportTypeOptions = [
 ]
 
 const activeProducts = computed(() => sellerProducts.value.filter((product) => product.active !== false).length)
+const moderatedProducts = computed(() =>
+  sellerProducts.value.filter(
+    (product) =>
+      product.moderationStatus &&
+      product.moderationStatus !== moderationStatuses.approved,
+  ),
+)
+const pendingModerationProducts = computed(() =>
+  sellerProducts.value.filter(
+    (product) => product.moderationStatus === moderationStatuses.pendingReview,
+  ),
+)
 const reportSellerOptions = computed(() =>
   [...new Set(sellerProducts.value.map((product) => product.vendor || product.seller).filter(Boolean))].sort(),
 )
@@ -349,6 +451,33 @@ const saveProducts = () => {
 const deleteProduct = (id) => {
   sellerProducts.value = sellerProducts.value.filter((product) => product.id !== id)
   saveProducts()
+}
+
+const reviewProduct = (id, status) => {
+  const approved = status === moderationStatuses.approved
+  sellerProducts.value = sellerProducts.value.map((product) =>
+    product.id === id
+      ? {
+          ...product,
+          active: approved,
+          moderationStatus: status,
+          moderationDecision: approved ? 'admin_approved' : 'admin_rejected',
+          moderationReason: approved
+            ? 'Admin reviewed the AI result and approved this product.'
+            : 'Admin reviewed the AI result and rejected this product.',
+          reviewedBy: 'Admin',
+          reviewedAt: new Date().toISOString(),
+          reviewNote: approved ? 'Approved after manual review.' : 'Rejected after manual review.',
+        }
+      : product,
+  )
+  saveProducts()
+  $q.notify({
+    color: approved ? 'positive' : 'negative',
+    icon: approved ? 'check_circle' : 'block',
+    message: approved ? 'Product approved and published.' : 'Product rejected.',
+    position: 'top',
+  })
 }
 
 const getStatusColor = (status) => {
@@ -486,6 +615,7 @@ const createProductReport = () => ({
     { key: 'price', label: 'Base Price' },
     { key: 'stock', label: 'Stock' },
     { key: 'variations', label: 'Variations' },
+    { key: 'moderation', label: 'Moderation' },
     { key: 'status', label: 'Status' },
   ],
   rows: getFilteredProductsForReport().map((product) => ({
@@ -495,6 +625,7 @@ const createProductReport = () => ({
     price: `RM ${Number(product.price || 0).toFixed(2)}`,
     stock: product.stock ?? 'Not set',
     variations: product.variations?.length || 0,
+    moderation: getModerationStatusLabel(product.moderationStatus),
     status: product.active === false ? 'Hidden' : 'Active',
   })),
 })

@@ -7,12 +7,23 @@ import { normalizeStoredImage } from 'src/utils/assets'
 export const starterProducts = []
 
 export const getSellerProducts = () => {
-  return loadState('upnm-seller-products', [])
+  const sellers = getUsers().filter((user) => user.role === 'seller' && user.active !== false)
+  const sellerIds = new Set(sellers.map((seller) => String(seller.id)))
+  const sellerNames = new Set(sellers.map((seller) => seller.name.toLowerCase()))
+
+  return loadState('upnm-seller-products', []).filter((product) => {
+    if (product.sellerId && sellerIds.has(String(product.sellerId))) return true
+    return sellerNames.has(String(product.vendor || product.seller || '').toLowerCase())
+  })
 }
 
 export const saveSellerProducts = (products) => {
-  saveState('upnm-seller-products', products)
-  syncProductsToSupabase(products)
+  const sellers = getUsers().filter((user) => user.role === 'seller' && user.active !== false)
+  const sellerIds = new Set(sellers.map((seller) => String(seller.id)))
+  const validProducts = products.filter((product) => product.sellerId && sellerIds.has(String(product.sellerId)))
+
+  saveState('upnm-seller-products', validProducts)
+  syncProductsToSupabase(validProducts)
 }
 
 export const getProductStock = (product) => {
@@ -83,7 +94,7 @@ export const getProducts = () => getSellerProducts().map((product) => ({
   active: product.active !== false,
   image: normalizeStoredImage(product.image),
   vendor: product.vendor || product.seller || 'Campus Vendor',
-}))
+})).filter((product) => product.moderationStatus === 'approved')
 
 export const getSellerForProduct = (product) => {
   const users = getUsers()

@@ -602,7 +602,7 @@ const getStockLabel = (item) => {
 // Data Filter Calculations Engine
 const filteredItems = computed(() => {
   databaseVersion.value
-  let baseItems = getProducts().filter((item) => item.active !== false)
+  let baseItems = getProducts().filter((item) => item.active !== false && getSellerForProduct(item))
 
   // Use activeSearch instead of route.query directly
   if (activeSearch.value) {

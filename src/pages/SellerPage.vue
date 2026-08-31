@@ -188,6 +188,20 @@
                     {{ getCategoryLabel(product.category) }}
                   </div>
                   <div class="text-caption text-grey-7">{{ getStockLabel(product) }}</div>
+                  <q-chip
+                    dense
+                    square
+                    class="q-mt-xs"
+                    :color="getModerationStatusColor(product.moderationStatus)"
+                    text-color="white"
+                    :label="getModerationStatusLabel(product.moderationStatus)"
+                  />
+                  <div
+                    v-if="product.moderationReason"
+                    class="text-caption text-grey-7 q-mt-xs seller-moderation-reason"
+                  >
+                    {{ product.moderationReason }}
+                  </div>
                   <div class="seller-product-price">
                     RM {{ Number(product.price || 0).toFixed(2) }}
                   </div>
@@ -196,6 +210,7 @@
                     color="primary"
                     :label="product.active ? 'Active' : 'Hidden'"
                     size="sm"
+                    :disable="product.moderationStatus !== 'approved'"
                     @click.stop
                     @update:model-value="saveProducts"
                   />
@@ -540,6 +555,11 @@ import { getUploadSizeError } from 'src/utils/fileValidation'
 import { normalizeStoredImage } from 'src/utils/assets'
 import { getPaymentMethodLabel } from 'src/utils/paymentGateway'
 import {
+  getModerationStatusColor,
+  getModerationStatusLabel,
+  moderateProduct,
+} from 'src/utils/productModeration'
+import {
   addMessage,
   getConversationSummaries,
   getCurrentUser,
@@ -653,6 +673,15 @@ const openStoreProfile = () => {
 }
 
 const openAddProduct = () => {
+  if (currentUser.value?.role !== 'seller' || !currentUser.value?.id) {
+    $q.notify({
+      type: 'negative',
+      message: 'Please sign in with a seller account before posting products.',
+      position: 'top',
+    })
+    return
+  }
+
   form.value = emptyForm()
   if (productImageInput.value) productImageInput.value.value = ''
   editingProductId.value = null
@@ -750,6 +779,15 @@ const getCleanAddons = () =>
     .filter((addon) => addon.label)
 
 const saveProductForm = () => {
+  if (currentUser.value?.role !== 'seller' || !currentUser.value?.id) {
+    $q.notify({
+      type: 'negative',
+      message: 'Only seller accounts can post products.',
+      position: 'top',
+    })
+    return
+  }
+
   if (
     !form.value.name.trim() ||
     !form.value.desc1.trim() ||
@@ -768,6 +806,12 @@ const saveProductForm = () => {
   const variations = getCleanVariations()
   const addons = getCleanAddons()
   const stock = Math.max(0, Number(form.value.stock || 0))
+  const moderation = moderateProduct({
+    name: form.value.name,
+    category: form.value.category,
+    desc1: form.value.desc1,
+    vendor: currentUser.value?.name,
+  })
 
   if (wasEditing) {
     sellerProducts.value = sellerProducts.value.map((product) =>
@@ -782,6 +826,7 @@ const saveProductForm = () => {
             desc1: form.value.desc1.trim(),
             variations,
             addons,
+            ...moderation,
           }
         : product,
     )
@@ -799,7 +844,7 @@ const saveProductForm = () => {
       desc1: form.value.desc1.trim(),
       variations,
       addons,
-      active: true,
+      ...moderation,
     })
   }
   saveProducts()
@@ -809,8 +854,13 @@ const saveProductForm = () => {
   editingProductId.value = null
   $q.notify({
     color: 'primary',
-    icon: 'check_circle',
-    message: wasEditing ? 'Product updated.' : 'Product saved.',
+    icon: moderation.moderationStatus === 'approved' ? 'check_circle' : 'policy',
+    message:
+      moderation.moderationStatus === 'approved'
+        ? wasEditing
+          ? 'Product updated and approved by built-in moderation.'
+          : 'Product saved and approved by built-in moderation.'
+        : 'Product saved for admin moderation review.',
     position: 'top',
   })
 }
