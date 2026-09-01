@@ -2988,11 +2988,32 @@ body {
   }
 
   .profile-header-actions {
+    width: 100%;
     justify-content: center;
   }
 
   .profile-form-grid {
     grid-template-columns: 1fr;
+  }
+
+  .profile-settings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-settings-card,
+  .profile-settings-card--wide {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+
+  .profile-savebar {
+    align-items: stretch;
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .profile-action-btn {
+    width: 100%;
   }
 
   .search-panel {
@@ -3603,10 +3624,6 @@ body {
 
   .profile-welcome {
     font-size: 1.15rem;
-  }
-
-  .profile-cover {
-    height: 58px;
   }
 
   .profile-avatar {
