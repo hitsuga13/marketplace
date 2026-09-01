@@ -1,8 +1,8 @@
 {
   "name": "quasar-project",
   "version": "0.0.1",
-  "description": "market place",
-  "productName": "Quasar App",
+  "description": "UPNM campus marketplace for student deals, services, and thrift finds",
+  "productName": "UPNM Market",
   "author": "kurotsuchi <126145510+hitsuga13@users.noreply.github.com>",
   "type": "module",
   "private": true,
