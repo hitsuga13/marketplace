@@ -1,7 +1,7 @@
 <!-- Purpose: Dedicated buyer/seller chat page with conversation search, unread counts, message bubbles, and read tracking. -->
 <template>
   <q-page class="chat-page">
-    <section class="chat-shell">
+    <section :class="['chat-shell', { 'chat-shell--conversation-open': activeConversation }]">
       <aside class="chat-sidebar">
         <div class="chat-sidebar-top">
           <q-input
@@ -89,6 +89,16 @@
       <main class="chat-main">
         <template v-if="activeConversation">
           <header class="chat-main-header">
+            <q-btn
+              flat
+              round
+              dense
+              icon="arrow_back"
+              color="primary"
+              class="chat-mobile-back"
+              aria-label="Back to chats"
+              @click="closeConversation"
+            />
             <q-avatar size="54px" class="chat-contact-avatar">
               <q-icon name="person" />
             </q-avatar>
@@ -159,6 +169,9 @@ const searchText = ref('')
 const activeConversation = ref(null)
 const chatReadState = ref(loadState('upnm-chat-read-state', {}))
 const presenceTick = ref(Date.now())
+const isMobileChat = ref(
+  typeof window !== 'undefined' && window.matchMedia('(max-width: 700px)').matches,
+)
 let unsubscribeChatRealtime = null
 let presenceTimer = null
 
@@ -287,10 +300,18 @@ const openConversation = (conversation) => {
   markConversationRead(conversation)
 }
 
+const closeConversation = () => {
+  activeConversation.value = null
+}
+
+const updateMobileChatMode = () => {
+  isMobileChat.value = window.matchMedia('(max-width: 700px)').matches
+}
+
 watch(
   filteredConversations,
   (value) => {
-    if (!activeConversation.value && value.length > 0) {
+    if (!isMobileChat.value && !activeConversation.value && value.length > 0) {
       activeConversation.value = value[0]
       markConversationRead(value[0])
     }
@@ -299,10 +320,12 @@ watch(
 )
 
 onMounted(() => {
+  updateMobileChatMode()
   unsubscribeChatRealtime = subscribeToChatMessages()
   window.addEventListener('upnm-chat-updated', refreshActiveConversation)
   window.addEventListener('upnm-presence-updated', refreshActiveConversation)
   window.addEventListener('upnm-supabase-cache-updated', refreshActiveConversation)
+  window.addEventListener('resize', updateMobileChatMode)
   presenceTimer = window.setInterval(() => {
     presenceTick.value = Date.now()
   }, 30000)
@@ -314,6 +337,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('upnm-chat-updated', refreshActiveConversation)
   window.removeEventListener('upnm-presence-updated', refreshActiveConversation)
   window.removeEventListener('upnm-supabase-cache-updated', refreshActiveConversation)
+  window.removeEventListener('resize', updateMobileChatMode)
 })
 </script>
 

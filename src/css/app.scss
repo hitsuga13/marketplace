@@ -2526,6 +2526,11 @@ body {
   background: #ffffff;
 }
 
+.chat-mobile-back {
+  display: none;
+  flex: 0 0 auto;
+}
+
 .chat-main-name {
   color: #111827;
   font-size: 1.45rem;
@@ -3068,10 +3073,23 @@ body {
     grid-template-columns: 1fr;
   }
 
+  .chat-shell:not(.chat-shell--conversation-open) .chat-main {
+    display: none;
+  }
+
+  .chat-shell--conversation-open .chat-sidebar {
+    display: none;
+  }
+
+  .chat-mobile-back {
+    display: inline-flex;
+  }
+
   .chat-sidebar {
-    max-height: 360px;
+    min-height: min(560px, calc(100svh - 150px));
+    max-height: none;
     border-right: 0;
-    border-bottom: 1px solid #e7ebf3;
+    border-bottom: 0;
   }
 
   .chat-message-bubble {
@@ -3488,7 +3506,7 @@ body {
   }
 
   .chat-sidebar {
-    max-height: 238px;
+    min-height: 100%;
   }
 
   .chat-sidebar-top {
