@@ -1,7 +1,7 @@
 // Purpose: Local product store for seller-posted products, stock calculation, active products, and seller lookup.
 import { loadState, saveState } from './storage.js'
 import { getUsers } from './users.js'
-import { syncProductsToSupabase } from './supabaseSync.js'
+import { deleteProductFromSupabase, syncProductsToSupabase } from './supabaseSync.js'
 import { normalizeStoredImage } from 'src/utils/assets'
 
 export const starterProducts = []
@@ -24,6 +24,16 @@ export const saveSellerProducts = (products) => {
 
   saveState('upnm-seller-products', validProducts)
   syncProductsToSupabase(validProducts)
+}
+
+export const deleteSellerProduct = (productId) => {
+  const nextProducts = getSellerProducts().filter(
+    (product) => String(product.id) !== String(productId),
+  )
+
+  saveState('upnm-seller-products', nextProducts)
+  deleteProductFromSupabase(productId)
+  return nextProducts
 }
 
 export const getProductStock = (product) => {

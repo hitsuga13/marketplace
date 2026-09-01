@@ -10,8 +10,6 @@
           </div>
         </q-card-section>
 
-        <div class="profile-cover"></div>
-
         <q-card-section class="profile-main">
           <div class="profile-identity-row">
             <div class="profile-identity">
@@ -22,151 +20,186 @@
               <div>
                 <div class="profile-name">{{ currentUser.name }}</div>
                 <div class="profile-email">{{ currentUser.email }}</div>
-                <q-badge color="primary" class="q-mt-sm" :label="currentUser.role" />
-              </div>
-            </div>
-            <q-btn
-              unelevated
-              color="primary"
-              :icon="isEditingProfile ? 'edit' : undefined"
-              :label="isEditingProfile ? 'Editing' : 'Edit'"
-              class="profile-edit-btn"
-              @click="startProfileEdit"
-            />
-          </div>
-
-          <div class="profile-form-grid">
-            <div class="col-12 col-md-6">
-              <div class="profile-field-label">Full Name</div>
-              <q-input
-                ref="nameInput"
-                v-model="profileForm.name"
-                borderless
-                dense
-                :readonly="!isEditingProfile"
-                placeholder="Your full name"
-                class="profile-field"
-              />
-            </div>
-            <div class="col-12 col-md-6">
-              <div class="profile-field-label">Phone Number</div>
-              <q-input
-                v-model="profileForm.phone"
-                borderless
-                dense
-                :readonly="!isEditingProfile"
-                placeholder="Your phone number"
-                class="profile-field"
-              />
-            </div>
-            <div class="col-12 col-md-6">
-              <div class="profile-field-label">Email Address</div>
-              <q-input
-                v-model="profileForm.email"
-                borderless
-                dense
-                :readonly="!isEditingProfile"
-                placeholder="Your email"
-                type="email"
-                class="profile-field"
-              />
-            </div>
-            <div class="col-12 col-md-6">
-              <div class="profile-field-label">Profile Picture</div>
-              <div class="profile-picture-control">
-                <q-avatar size="74px" class="profile-picture-control__avatar">
-                  <img v-if="profileForm.avatar" :src="profileForm.avatar" alt="Profile picture" />
-                  <q-icon v-else name="person" size="42px" />
-                </q-avatar>
-                <div class="profile-picture-control__actions">
-                  <input
-                    ref="profilePictureInput"
-                    type="file"
-                    accept="image/*"
-                    class="hidden-file-input"
-                    @change="handleProfilePicture"
-                  />
-                  <q-btn
-                    unelevated
-                    color="primary"
-                    icon="photo_camera"
-                    label="Change profile picture"
-                    no-caps
-                    class="profile-upload-btn"
-                    @click="openProfileCropper"
-                  />
-                  <q-btn
-                    v-if="profileForm.avatar"
-                    flat
-                    dense
-                    color="negative"
-                    icon="delete"
-                    label="Delete profile picture"
-                    no-caps
-                    @click="deleteProfilePicture"
+                <div class="profile-badge-row">
+                  <q-badge color="primary" :label="currentUser.role" />
+                  <q-badge
+                    :color="currentUser.active === false ? 'negative' : 'positive'"
+                    :label="currentUser.active === false ? 'Suspended' : 'Active'"
                   />
                 </div>
               </div>
             </div>
-            <div v-if="currentUser.role === 'seller'" class="col-12">
-              <div class="profile-field-label">Seller Payment QR</div>
-              <div class="seller-qr-profile">
-                <q-img
-                  v-if="profileForm.paymentQr"
-                  :src="profileForm.paymentQr"
-                  ratio="1"
-                  fit="contain"
-                  class="seller-qr-preview"
-                />
-                <div v-else class="seller-qr-empty">
-                  <q-icon name="qr_code_2" size="44px" color="primary" />
-                  <div>Upload QR code for buyer payment</div>
-                </div>
-              </div>
+            <div class="profile-header-actions">
               <input
-                ref="paymentQrInput"
+                ref="profilePictureInput"
                 type="file"
                 accept="image/*"
                 class="hidden-file-input"
-                @change="handlePaymentQr"
+                @change="handleProfilePicture"
+              />
+              <q-btn
+                outline
+                color="primary"
+                icon="photo_camera"
+                label="Photo"
+                no-caps
+                @click="openProfileCropper"
+              />
+              <q-btn
+                v-if="profileForm.avatar"
+                outline
+                color="negative"
+                icon="delete"
+                label="Remove"
+                no-caps
+                @click="deleteProfilePicture"
               />
               <q-btn
                 unelevated
                 color="primary"
-                icon="qr_code_2"
-                :label="profileForm.paymentQr ? 'Resize payment QR' : 'Upload payment QR'"
+                :icon="isEditingProfile ? 'edit' : 'edit'"
+                :label="isEditingProfile ? 'Editing' : 'Edit'"
+                class="profile-edit-btn"
+                @click="startProfileEdit"
+              />
+              <q-btn
+                outline
+                color="negative"
+                icon="logout"
+                label="Log out"
                 no-caps
-                class="profile-upload-btn q-mt-sm"
-                @click="openPaymentQrCropper"
+                @click="handleLogout"
               />
             </div>
+          </div>
+
+          <div class="profile-settings-grid">
+            <q-card flat bordered class="profile-settings-card">
+              <q-card-section>
+                <div class="profile-section-title">
+                  <q-icon name="badge" color="primary" />
+                  <span>Personal Information</span>
+                </div>
+                <div class="profile-form-grid q-mt-md">
+                  <div>
+                    <div class="profile-field-label">Full Name</div>
+                    <q-input
+                      ref="nameInput"
+                      v-model="profileForm.name"
+                      borderless
+                      dense
+                      :readonly="!isEditingProfile"
+                      placeholder="Your full name"
+                      class="profile-field"
+                    />
+                  </div>
+                  <div>
+                    <div class="profile-field-label">Phone Number</div>
+                    <q-input
+                      v-model="profileForm.phone"
+                      borderless
+                      dense
+                      :readonly="!isEditingProfile"
+                      placeholder="Your phone number"
+                      class="profile-field"
+                    />
+                  </div>
+                  <div class="profile-form-grid__full">
+                    <div class="profile-field-label">Email Address</div>
+                    <q-input
+                      v-model="profileForm.email"
+                      borderless
+                      dense
+                      :readonly="!isEditingProfile"
+                      placeholder="Your email"
+                      type="email"
+                      class="profile-field"
+                    />
+                  </div>
+                </div>
+              </q-card-section>
+            </q-card>
+
+            <q-card flat bordered class="profile-settings-card">
+              <q-card-section>
+                <div class="profile-section-title">
+                  <q-icon :name="roleSummary.icon" color="primary" />
+                  <span>{{ roleSummary.title }}</span>
+                </div>
+                <div class="profile-summary-list q-mt-md">
+                  <div>
+                    <span>Access</span>
+                    <strong>{{ roleSummary.access }}</strong>
+                  </div>
+                  <div>
+                    <span>Primary Dashboard</span>
+                    <strong>{{ roleSummary.dashboard }}</strong>
+                  </div>
+                  <div>
+                    <span>Account Status</span>
+                    <strong>{{ currentUser.active === false ? 'Suspended' : 'Active' }}</strong>
+                  </div>
+                </div>
+              </q-card-section>
+            </q-card>
+
+            <q-card v-if="currentUser.role === 'seller'" flat bordered class="profile-settings-card profile-settings-card--wide">
+              <q-card-section>
+                <div class="profile-section-title">
+                  <q-icon name="qr_code_2" color="primary" />
+                  <span>Seller Payment QR</span>
+                </div>
+                <div class="seller-qr-profile q-mt-md">
+                  <q-img
+                    v-if="profileForm.paymentQr"
+                    :src="profileForm.paymentQr"
+                    ratio="1"
+                    fit="contain"
+                    class="seller-qr-preview"
+                  />
+                  <div v-else class="seller-qr-empty">
+                    <q-icon name="qr_code_2" size="44px" color="primary" />
+                    <div>Upload QR code for buyer payment</div>
+                  </div>
+                </div>
+                <input
+                  ref="paymentQrInput"
+                  type="file"
+                  accept="image/*"
+                  class="hidden-file-input"
+                  @change="handlePaymentQr"
+                />
+                <q-btn
+                  unelevated
+                  color="primary"
+                  icon="qr_code_2"
+                  :label="profileForm.paymentQr ? 'Resize payment QR' : 'Upload payment QR'"
+                  no-caps
+                  class="profile-upload-btn q-mt-sm"
+                  @click="openPaymentQrCropper"
+                />
+              </q-card-section>
+            </q-card>
           </div>
 
           <q-banner v-if="message" :class="['auth-message q-mt-md', messageType]">
             {{ message }}
           </q-banner>
 
-          <div class="row q-col-gutter-sm q-mt-md">
-            <div class="col-12 col-sm-6">
-              <q-btn
-                unelevated
-                color="primary"
-                icon="save"
-                label="Save profile"
-                class="full-width profile-action-btn"
-                @click="handleSaveProfile"
-              />
+          <div class="profile-savebar q-mt-md">
+            <div>
+              <strong>Account settings</strong>
+              <span>Update your contact details and role settings.</span>
             </div>
-            <div class="col-12 col-sm-6">
-              <q-btn
-                outline
-                color="negative"
-                icon="logout"
-                label="Log out"
-                class="full-width profile-action-btn"
-                @click="handleLogout"
-              />
-            </div>
+            <q-btn
+              unelevated
+              color="primary"
+              icon="save"
+              label="Save changes"
+              class="profile-action-btn"
+              :loading="loading"
+              @click="handleSaveProfile"
+            />
           </div>
         </q-card-section>
       </q-card>
@@ -504,9 +537,11 @@ import { isSupabaseConfigured, supabase } from 'src/supabase/client'
 import {
   generateRecoveryCode,
   getCurrentUser,
+  initializeSupabaseCache,
   getRoleHome,
   getUsers,
   markCurrentUserPresence,
+  saveUserProfile,
   saveUsers,
   setCurrentUser,
 } from 'src/database'
@@ -577,6 +612,33 @@ const profileForm = ref({
 
 
 const firstName = computed(() => currentUser.value?.name?.split(' ')[0] || 'User')
+
+const roleSummary = computed(() => {
+  if (currentUser.value?.role === 'admin') {
+    return {
+      title: 'Admin Access',
+      icon: 'admin_panel_settings',
+      access: 'Users, products, orders, reports, and AI moderation',
+      dashboard: 'Admin Dashboard',
+    }
+  }
+
+  if (currentUser.value?.role === 'seller') {
+    return {
+      title: 'Seller Workspace',
+      icon: 'storefront',
+      access: 'Listings, orders, receipts, payment QR, and buyer chat',
+      dashboard: 'Seller Dashboard',
+    }
+  }
+
+  return {
+    title: 'Buyer Account',
+    icon: 'shopping_bag',
+    access: 'Browse, cart, checkout, receipt upload, and order history',
+    dashboard: 'Buyer Dashboard',
+  }
+})
 
 const recoveryDialogTitle = computed(() =>
   recoveryNoticeType.value === 'recovered' ? 'Account Recovered' : 'Save Your Recovery Code',
@@ -730,6 +792,7 @@ const handleLogin = async () => {
 
     currentUser.value = user
     if (user.role === 'seller') markCurrentUserPresence('online', user)
+    if (isSupabaseConfigured && supabase) await initializeSupabaseCache()
     setMessage(`Logged in as ${user.name}.`, 'success')
     router.push(getRoleHome(user.role))
   } catch (error) {
@@ -786,6 +849,7 @@ const handleRegister = async () => {
     users.value.push(newUser)
     currentUser.value = newUser
     if (newUser.role === 'seller') markCurrentUserPresence('online', newUser)
+    if (isSupabaseConfigured && supabase) await initializeSupabaseCache()
     authMode.value = 'login'
     loginForm.value = {
       role: newUser.role,
@@ -844,13 +908,45 @@ const handleProfilePicture = (eventOrFile) => {
   reader.readAsDataURL(file)
 }
 
-const applyProfileCrop = (croppedImage) => {
-  profileForm.value.avatar = croppedImage
+const buildUpdatedProfileUser = () => ({
+  ...currentUser.value,
+  name: profileForm.value.name.trim(),
+  phone: profileForm.value.phone.trim(),
+  email: profileForm.value.email.trim().toLowerCase(),
+  avatar: profileForm.value.avatar.trim(),
+  paymentQr: profileForm.value.paymentQr,
+})
+
+const persistProfileUser = async (updatedUser, successMessage) => {
+  loading.value = true
+
+  try {
+    users.value = users.value.map((user) =>
+      String(user.id) === String(currentUser.value.id) ? updatedUser : user,
+    )
+    currentUser.value = updatedUser
+    setCurrentUser(updatedUser)
+    await saveUserProfile(users.value, updatedUser)
+    setMessage(successMessage, 'success')
+    return true
+  } catch (error) {
+    console.warn('Profile update failed', error)
+    setMessage(error?.message || 'Profile could not be saved. Please try again.', 'error')
+    return false
+  } finally {
+    loading.value = false
+  }
 }
 
-const deleteProfilePicture = () => {
+const applyProfileCrop = async (croppedImage) => {
+  profileForm.value.avatar = croppedImage
+  await persistProfileUser(buildUpdatedProfileUser(), 'Profile picture updated successfully.')
+}
+
+const deleteProfilePicture = async () => {
   profileForm.value.avatar = ''
   profileCropSource.value = ''
+  await persistProfileUser(buildUpdatedProfileUser(), 'Profile picture removed successfully.')
 }
 
 const openPaymentQrCropper = () => {
@@ -891,8 +987,9 @@ const handlePaymentQr = (eventOrFile) => {
   reader.readAsDataURL(file)
 }
 
-const applyPaymentQrCrop = (croppedImage) => {
+const applyPaymentQrCrop = async (croppedImage) => {
   profileForm.value.paymentQr = croppedImage
+  await persistProfileUser(buildUpdatedProfileUser(), 'Payment QR updated successfully.')
 }
 
 const startProfileEdit = async () => {
@@ -901,7 +998,7 @@ const startProfileEdit = async () => {
   nameInput.value?.focus()
 }
 
-const handleSaveProfile = () => {
+const handleSaveProfile = async () => {
   const name = profileForm.value.name.trim()
   const phone = profileForm.value.phone.trim()
   const email = profileForm.value.email.trim().toLowerCase()
@@ -912,7 +1009,9 @@ const handleSaveProfile = () => {
   }
 
   const emailUsed = users.value.some(
-    (user) => user.id !== currentUser.value.id && user.email.toLowerCase() === email,
+    (user) =>
+      String(user.id) !== String(currentUser.value.id) &&
+      String(user.email || '').toLowerCase() === email,
   )
 
   if (emailUsed) {
@@ -920,21 +1019,8 @@ const handleSaveProfile = () => {
     return
   }
 
-  const updatedUser = {
-    ...currentUser.value,
-    name,
-    phone,
-    email,
-    avatar: profileForm.value.avatar.trim(),
-    paymentQr: profileForm.value.paymentQr,
-  }
-
-  const index = users.value.findIndex((user) => user.id === currentUser.value.id)
-  if (index > -1) users.value[index] = updatedUser
-
-  currentUser.value = updatedUser
-  isEditingProfile.value = false
-  setMessage('Profile updated successfully.', 'success')
+  const saved = await persistProfileUser(buildUpdatedProfileUser(), 'Profile updated successfully.')
+  if (saved) isEditingProfile.value = false
 }
 
 const handleForgotPassword = () => {

@@ -14,9 +14,22 @@ alter table public.products
 alter table public.products
   drop constraint if exists products_moderation_status_check;
 
-alter table public.products
-  add constraint products_moderation_status_check
-  check (moderation_status in ('approved', 'pending_review', 'rejected'));
+drop trigger if exists products_apply_moderation on public.products;
+
+update public.products
+set
+  moderation_status = case when moderation_status = 'pending_review' then 'rejected' else moderation_status end,
+  active = case when moderation_status = 'pending_review' then false else active end,
+  moderation_reason = case
+    when moderation_status = 'pending_review' then coalesce(nullif(moderation_reason, ''), 'AI rejected this product for admin final check.')
+    else coalesce(moderation_reason, 'Existing product approved before moderation metadata was added.')
+  end,
+  moderation_decision = coalesce(moderation_decision, 'auto_approved'),
+  moderation_categories = coalesce(moderation_categories, '[]'::jsonb)
+where moderation_status is null
+  or moderation_status = 'pending_review'
+  or moderation_decision is null
+  or moderation_categories is null;
 
 create or replace function public.apply_product_moderation()
 returns trigger
@@ -28,6 +41,12 @@ declare
   product_text text;
 begin
   if public.current_app_user_is_admin() then
+    return new;
+  end if;
+
+  if new.moderation_checked_at is not null
+    and new.moderation_decision not in ('auto_approved', 'flagged')
+  then
     return new;
   end if;
 
@@ -43,7 +62,7 @@ begin
   );
 
   if product_text ~ '(vape|pod|pods|e-cigarette|ecigarette|rokok|cigarette|tobacco|alcohol|arak|beer|wine|liquor|whisky|vodka|rum|drug|drugs|ganja|weed|marijuana|cannabis|pil kuda|ketum|weapon|knife|pisau|gun|pistol|taser|pepper spray|lucah|porn|sex|explicit|offensive)' then
-    new.moderation_status := 'pending_review';
+    new.moderation_status := 'rejected';
     new.moderation_decision := 'flagged';
     new.moderation_reason := 'Potential prohibited item detected by built-in database moderation.';
     new.moderation_confidence := 0.920;
@@ -58,7 +77,7 @@ begin
     new.moderation_reason := 'No prohibited terms detected by built-in database moderation.';
     new.moderation_confidence := 0.810;
     new.moderation_checked_at := now();
-    new.reviewed_by := 'Built-in moderation';
+    new.reviewed_by := null;
     new.reviewed_at := null;
     new.review_note := '';
   end if;
@@ -67,21 +86,14 @@ begin
 end;
 $$;
 
-drop trigger if exists products_apply_moderation on public.products;
 create trigger products_apply_moderation
 before insert or update of name, category, desc1, vendor, seller, moderation_status, moderation_decision
 on public.products
 for each row execute function public.apply_product_moderation();
 
-update public.products
-set
-  moderation_status = coalesce(moderation_status, 'approved'),
-  moderation_decision = coalesce(moderation_decision, 'auto_approved'),
-  moderation_reason = coalesce(moderation_reason, 'Existing product approved before moderation metadata was added.'),
-  moderation_categories = coalesce(moderation_categories, '[]'::jsonb)
-where moderation_status is null
-  or moderation_decision is null
-  or moderation_categories is null;
+alter table public.products
+  add constraint products_moderation_status_check
+  check (moderation_status in ('approved', 'rejected'));
 
 drop policy if exists products_public_read_active on public.products;
 create policy products_public_read_active on public.products

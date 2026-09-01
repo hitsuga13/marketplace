@@ -135,7 +135,6 @@ const assertSupabaseOk = ({ error }, action) => {
 }
 
 const toSupabaseUser = (user) => ({
-  id: Number.isSafeInteger(Number(user.id)) ? Number(user.id) : undefined,
   local_id: String(user.id),
   auth_id: user.authId || user.auth_id || undefined,
   name: user.name || '',
@@ -446,8 +445,8 @@ export const fetchOrderReceipt = async (orderId) => {
   }
 }
 
-export const syncUsersToSupabase = (users) =>
-  queueSync('users', async () => {
+export const syncUsersToSupabase = (users, options = {}) => {
+  const task = async () => {
     const actor = getSyncActor()
     const rows = users.filter((user) => isOwnUser(user, actor)).map(toSupabaseUser)
     if (rows.length === 0) return
@@ -455,7 +454,56 @@ export const syncUsersToSupabase = (users) =>
       await supabase.from('users').upsert(rows, { onConflict: 'local_id' }),
       'Sync users',
     )
-  })
+  }
+
+  if (options.immediate) return isSupabaseConfigured && supabase ? task() : Promise.resolve()
+  return queueSync('users', task)
+}
+
+export const updateUserProfileInSupabase = async (user) => {
+  if (!isSupabaseConfigured || !supabase || !user?.id) return
+
+  const {
+    data: { session },
+    error: sessionError,
+  } = await supabase.auth.getSession()
+
+  if (sessionError) throw new Error(`Update profile: ${sessionError.message}`)
+  if (!session?.user?.id) throw new Error('Update profile: no active Supabase session')
+
+  const profile = {
+    name: user.name || '',
+    email: String(user.email || '').toLowerCase(),
+    phone: user.phone || '',
+    avatar: user.avatar || '',
+    payment_qr: user.paymentQr || '',
+    business_hours: user.businessHours || '',
+    pickup_address: user.pickupAddress || '',
+  }
+
+  let result = await supabase
+    .from('users')
+    .update(profile)
+    .eq('auth_id', session.user.id)
+    .eq('role', user.role || 'buyer')
+    .select('local_id, auth_id')
+    .maybeSingle()
+
+  assertSupabaseOk(result, 'Update profile')
+
+  if (!result.data) {
+    result = await supabase
+      .from('users')
+      .update(profile)
+      .eq('local_id', String(user.id))
+      .select('local_id, auth_id')
+      .maybeSingle()
+
+    assertSupabaseOk(result, 'Update profile')
+  }
+
+  if (!result.data) throw new Error('Update profile: no matching profile row')
+}
 
 export const syncProductsToSupabase = (products) =>
   queueSync('products', async () => {
@@ -468,6 +516,15 @@ export const syncProductsToSupabase = (products) =>
         'Sync products',
       )
     }
+  })
+
+export const deleteProductFromSupabase = (productId) =>
+  queueSync(`product-delete-${productId}`, async () => {
+    if (!productId) return
+    assertSupabaseOk(
+      await supabase.from('products').delete().eq('local_id', String(productId)),
+      'Delete product',
+    )
   })
 
 export const syncOrdersToSupabase = (orders) =>

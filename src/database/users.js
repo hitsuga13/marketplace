@@ -1,6 +1,6 @@
 // Purpose: Local user store for test users, registration/login sessions, roles, recovery codes, and profile data.
 import { loadState, saveState } from './storage.js'
-import { syncUsersToSupabase } from './supabaseSync.js'
+import { syncUsersToSupabase, updateUserProfileInSupabase } from './supabaseSync.js'
 
 const ONLINE_WINDOW_MS = 2 * 60 * 1000
 const IDLE_WINDOW_MS = 10 * 60 * 1000
@@ -63,9 +63,15 @@ export const getUsers = () => {
 
 export const isVerifiedSeller = (user) => user?.role === 'seller' && user.verifiedSeller !== false
 
-export const saveUsers = (users) => {
+export const saveUsers = (users, options = {}) => {
   saveState('upnm-users', users)
-  syncUsersToSupabase(users)
+  if (options.localOnly) return Promise.resolve()
+  return syncUsersToSupabase(users, options)
+}
+
+export const saveUserProfile = async (users, user) => {
+  saveState('upnm-users', users)
+  await updateUserProfileInSupabase(user)
 }
 
 export const getCurrentUser = () => loadState('upnm-current-user', null)

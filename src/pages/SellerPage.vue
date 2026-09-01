@@ -41,6 +41,7 @@
                 color="primary"
                 icon="add_box"
                 label="Add Product"
+                :disable="currentUser?.active === false"
                 @click="openAddProduct"
               />
             </div>
@@ -160,7 +161,15 @@
             </div>
 
             <div class="seller-product-grid q-mt-lg">
-              <q-card flat bordered class="seller-add-card" @click="openAddProduct">
+              <q-card
+                flat
+                bordered
+                :class="[
+                  'seller-add-card',
+                  currentUser?.active === false ? 'seller-add-card--disabled' : '',
+                ]"
+                @click="openAddProduct"
+              >
                 <q-icon name="add_circle" size="58px" color="primary" />
                 <div class="text-subtitle1 text-weight-bold q-mt-sm">Add Product</div>
                 <div class="text-caption text-grey-7 text-center">
@@ -221,6 +230,7 @@
                     round
                     color="primary"
                     icon="edit"
+                    :disable="product.moderationStatus === moderationStatuses.rejected"
                     @click.stop="openEditProduct(product)"
                   />
                   <q-btn
@@ -228,6 +238,7 @@
                     round
                     color="negative"
                     icon="delete"
+                    :disable="product.moderationStatus === moderationStatuses.rejected"
                     @click.stop="deleteProduct(product.id)"
                   />
                 </q-card-actions>
@@ -255,6 +266,64 @@
               />
             </div>
             <div class="text-grey-7">{{ currentUser?.email }}</div>
+          </q-card-section>
+        </q-card>
+
+        <q-card flat class="seller-owner-card q-mt-md">
+          <q-card-section>
+            <div class="row items-center justify-between">
+              <div>
+                <div class="text-subtitle1 text-weight-bold">Moderation Warnings</div>
+                <div class="text-grey-7 text-caption">Rejected listings are kept as audit records.</div>
+              </div>
+              <q-chip
+                :color="sellerWarningColor"
+                text-color="white"
+                icon="policy"
+                :label="sellerWarningLabel"
+              />
+            </div>
+            <q-linear-progress
+              rounded
+              size="10px"
+              :value="sellerWarningProgress"
+              :color="sellerWarningColor"
+              class="q-mt-md"
+            />
+            <q-banner
+              dense
+              :class="[
+                'role-banner q-mt-md',
+                currentUser?.active === false ? 'seller-warning-banner--danger' : '',
+              ]"
+            >
+              {{
+                currentUser?.active === false
+                  ? 'Your seller account is suspended after repeated prohibited product attempts.'
+                  : 'Posting prohibited products in the UPNM marketplace may suspend your seller account after 3 warnings.'
+              }}
+            </q-banner>
+          </q-card-section>
+        </q-card>
+
+        <q-card flat class="seller-owner-card q-mt-md">
+          <q-card-section>
+            <div class="text-subtitle1 text-weight-bold">Prohibited Product Policy</div>
+            <div class="text-grey-7 text-caption q-mt-xs">
+              AI checks product photo, name, category, and description before publishing.
+            </div>
+            <div class="seller-policy-list q-mt-md">
+              <q-chip
+                v-for="item in prohibitedPolicyItems"
+                :key="item"
+                dense
+                square
+                color="red-1"
+                text-color="negative"
+                icon="block"
+                :label="item"
+              />
+            </div>
           </q-card-section>
         </q-card>
 
@@ -557,18 +626,23 @@ import { getPaymentMethodLabel } from 'src/utils/paymentGateway'
 import {
   getModerationStatusColor,
   getModerationStatusLabel,
-  moderateProduct,
+  moderationStatuses,
+  moderateProductWithAI,
 } from 'src/utils/productModeration'
 import {
   addMessage,
+  deleteSellerProduct,
   getConversationSummaries,
   getCurrentUser,
+  getUsers,
   getProductStock,
   getSellerOrders,
   getSellerProducts,
   isVerifiedSeller,
   fetchOrderReceipt,
   saveSellerProducts,
+  saveUsers,
+  setCurrentUser,
   subscribeToChatMessages,
   updateOrderStatus as updateStoredOrderStatus,
 } from 'src/database'
@@ -664,8 +738,79 @@ const formatDate = (dateString) =>
     year: 'numeric',
   }).format(new Date(dateString))
 
+const SELLER_REJECTED_PRODUCT_LIMIT = 3
+const prohibitedPolicyItems = [
+  'Vape',
+  'Cigarettes',
+  'Alcohol',
+  'Drugs',
+  'Weapons',
+  'Offensive content',
+]
+
+const sellerWarningCount = computed(() => getSellerRejectedProductCount())
+const sellerWarningProgress = computed(() =>
+  Math.min(sellerWarningCount.value / SELLER_REJECTED_PRODUCT_LIMIT, 1),
+)
+const sellerWarningColor = computed(() => {
+  if (currentUser.value?.active === false || sellerWarningCount.value >= SELLER_REJECTED_PRODUCT_LIMIT) {
+    return 'negative'
+  }
+  if (sellerWarningCount.value >= 2) return 'warning'
+  return 'positive'
+})
+const sellerWarningLabel = computed(() => {
+  if (currentUser.value?.active === false) return 'Suspended'
+  return `${sellerWarningCount.value}/${SELLER_REJECTED_PRODUCT_LIMIT}`
+})
+
 const saveProducts = () => {
   saveSellerProducts(sellerProducts.value)
+}
+
+const getSellerRejectedProductCount = (sellerId = currentUser.value?.id) =>
+  sellerProducts.value.filter(
+    (product) =>
+      String(product.sellerId) === String(sellerId) &&
+      product.moderationStatus === moderationStatuses.rejected,
+  ).length
+
+const banCurrentSellerForModeration = () => {
+  if (!currentUser.value?.id) return
+
+  const bannedUser = {
+    ...currentUser.value,
+    active: false,
+    banReason: 'Repeated prohibited product listings detected by AI moderation.',
+    bannedAt: new Date().toISOString(),
+  }
+
+  const users = getUsers().map((user) =>
+    String(user.id) === String(bannedUser.id) ? { ...user, ...bannedUser } : user,
+  )
+
+  saveUsers(users)
+  setCurrentUser(bannedUser)
+  currentUser.value = bannedUser
+}
+
+const showRejectedProductWarning = (offenseCount) => {
+  const banned = offenseCount >= SELLER_REJECTED_PRODUCT_LIMIT
+  const title = banned ? 'Seller Account Banned' : 'UPNM Marketplace Regulation Warning'
+  const warningText = banned
+    ? 'Akaun seller anda telah diban kerana sistem mengesan 3 percubaan menjual barang terlarang di UCMP.'
+    : `Produk anda telah ditolak kerana dikesan sebagai barang terlarang di UCMP. Ini ialah amaran ${offenseCount}/${SELLER_REJECTED_PRODUCT_LIMIT}.`
+
+  $q.dialog({
+    title,
+    message: `${warningText} Menjual barang terlarang di kawasan kampus UPNM melanggar peraturan marketplace. Produk rejected ini akan disimpan sebagai rekod audit dan tidak boleh dipadam oleh seller.`,
+    persistent: true,
+    ok: {
+      label: 'I Understand',
+      color: banned ? 'negative' : 'warning',
+      icon: banned ? 'block' : 'policy',
+    },
+  })
 }
 
 const openStoreProfile = () => {
@@ -673,6 +818,15 @@ const openStoreProfile = () => {
 }
 
 const openAddProduct = () => {
+  if (currentUser.value?.active === false) {
+    $q.notify({
+      type: 'negative',
+      message: 'Your seller account has been suspended and cannot post products.',
+      position: 'top',
+    })
+    return
+  }
+
   if (currentUser.value?.role !== 'seller' || !currentUser.value?.id) {
     $q.notify({
       type: 'negative',
@@ -689,6 +843,19 @@ const openAddProduct = () => {
 }
 
 const openEditProduct = (product) => {
+  if (product.moderationStatus === moderationStatuses.rejected) {
+    $q.dialog({
+      title: 'Rejected Product Locked',
+      message:
+        'Produk rejected dikunci sebagai rekod audit UCMP dan tidak boleh diedit atau dipadam oleh seller.',
+      ok: {
+        label: 'I Understand',
+        color: 'primary',
+      },
+    })
+    return
+  }
+
   editingProductId.value = product.id
   form.value = {
     name: product.name,
@@ -778,7 +945,16 @@ const getCleanAddons = () =>
     }))
     .filter((addon) => addon.label)
 
-const saveProductForm = () => {
+const saveProductForm = async () => {
+  if (currentUser.value?.active === false) {
+    $q.notify({
+      type: 'negative',
+      message: 'Your seller account has been suspended and cannot post products.',
+      position: 'top',
+    })
+    return
+  }
+
   if (currentUser.value?.role !== 'seller' || !currentUser.value?.id) {
     $q.notify({
       type: 'negative',
@@ -806,10 +982,11 @@ const saveProductForm = () => {
   const variations = getCleanVariations()
   const addons = getCleanAddons()
   const stock = Math.max(0, Number(form.value.stock || 0))
-  const moderation = moderateProduct({
+  const moderation = await moderateProductWithAI({
     name: form.value.name,
     category: form.value.category,
     desc1: form.value.desc1,
+    image: form.value.image,
     vendor: currentUser.value?.name,
   })
 
@@ -848,26 +1025,62 @@ const saveProductForm = () => {
     })
   }
   saveProducts()
+  if (moderation.moderationStatus === moderationStatuses.rejected) {
+    const offenseCount = getSellerRejectedProductCount()
+    if (offenseCount >= SELLER_REJECTED_PRODUCT_LIMIT) banCurrentSellerForModeration()
+    showRejectedProductWarning(offenseCount)
+  }
   addProductDialog.value = false
   form.value = emptyForm()
   if (productImageInput.value) productImageInput.value.value = ''
   editingProductId.value = null
   $q.notify({
     color: 'primary',
-    icon: moderation.moderationStatus === 'approved' ? 'check_circle' : 'policy',
+    icon: moderation.moderationStatus === moderationStatuses.approved ? 'check_circle' : 'policy',
     message:
-      moderation.moderationStatus === 'approved'
+      moderation.moderationStatus === moderationStatuses.approved
         ? wasEditing
           ? 'Product updated and approved by built-in moderation.'
           : 'Product saved and approved by built-in moderation.'
-        : 'Product saved for admin moderation review.',
+        : 'Product rejected by AI moderation. Admin can final-check or override it.',
     position: 'top',
   })
 }
 
 const deleteProduct = (id) => {
-  sellerProducts.value = sellerProducts.value.filter((product) => product.id !== id)
-  saveProducts()
+  const product = sellerProducts.value.find((item) => String(item.id) === String(id))
+  if (product?.moderationStatus === moderationStatuses.rejected) {
+    $q.dialog({
+      title: 'Rejected Product Locked',
+      message:
+        'Produk rejected disimpan sebagai rekod audit UCMP dan tidak boleh dipadam oleh seller.',
+      ok: {
+        label: 'I Understand',
+        color: 'primary',
+      },
+    })
+    return
+  }
+
+  $q.dialog({
+    title: 'Delete Product',
+    message: `Delete ${product?.name || 'this product'}? This action cannot be undone.`,
+    cancel: true,
+    persistent: true,
+    ok: {
+      label: 'Delete',
+      color: 'negative',
+      icon: 'delete',
+    },
+  }).onOk(() => {
+    sellerProducts.value = deleteSellerProduct(id)
+    $q.notify({
+      color: 'negative',
+      icon: 'delete',
+      message: 'Product deleted.',
+      position: 'top',
+    })
+  })
 }
 
 const openConversation = (conversation) => {

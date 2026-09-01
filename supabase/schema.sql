@@ -36,7 +36,7 @@ create table if not exists public.products (
   desc1 text not null,
   variations jsonb not null default '[]'::jsonb,
   addons jsonb not null default '[]'::jsonb,
-  moderation_status text not null default 'approved' check (moderation_status in ('approved', 'pending_review', 'rejected')),
+  moderation_status text not null default 'approved' check (moderation_status in ('approved', 'rejected')),
   moderation_decision text not null default 'auto_approved',
   moderation_reason text default '',
   moderation_confidence numeric(4, 3),
