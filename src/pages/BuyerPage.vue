@@ -74,6 +74,16 @@
                   {{ order.paymentReference || 'No reference' }}
                 </q-item-label>
                 <q-item-label caption>{{ formatDate(order.createdAt) }}</q-item-label>
+                <div class="row items-center q-gutter-xs q-mt-xs">
+                  <q-chip
+                    dense
+                    :color="getReceiptVerificationColor(order.receiptVerificationStatus)"
+                    text-color="white"
+                    icon="document_scanner"
+                    :label="getReceiptVerificationLabel(order.receiptVerificationStatus)"
+                  />
+                  <span class="text-caption text-grey-7">{{ order.receiptVerificationReason }}</span>
+                </div>
                 <q-linear-progress
                   :value="getOrderProgress(order.status)"
                   :color="getStatusColor(order.status)"
@@ -149,6 +159,10 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useQuasar } from 'quasar'
 import { normalizeStoredImage } from 'src/utils/assets'
 import { getPaymentMethodLabel } from 'src/utils/paymentGateway'
+import {
+  getReceiptVerificationColor,
+  getReceiptVerificationLabel,
+} from 'src/utils/receiptVerification'
 import {
   cartCount,
   getBuyerOrders,

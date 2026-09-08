@@ -504,7 +504,7 @@
                 <input
                   :ref="(element) => setGroupReceiptInput(group.sellerKey, element)"
                   type="file"
-                  accept="image/*,.pdf"
+                  accept="image/*"
                   class="hidden-file-input"
                   @change="(event) => handleGroupReceiptUpload(group, event)"
                 />
@@ -538,8 +538,9 @@
             color="primary"
             icon="check_circle"
             label="I have paid"
-            :class="{ 'checkout-pay-btn--disabled': !cartReceiptsReady }"
-            :aria-disabled="!cartReceiptsReady"
+            :loading="receiptVerificationLoading"
+            :class="{ 'checkout-pay-btn--disabled': !cartReceiptsReady || receiptVerificationLoading }"
+            :aria-disabled="!cartReceiptsReady || receiptVerificationLoading"
             @click="handleCartPaymentClick"
           />
         </q-card-actions>
@@ -559,6 +560,7 @@ import {
   isValidPaymentReference,
   paymentMethods,
 } from 'src/utils/paymentGateway'
+import { verifyReceiptWithAI } from 'src/utils/receiptVerification'
 import { isSupabaseConfigured, supabase } from 'src/supabase/client'
 import {
   cart,
@@ -586,6 +588,7 @@ export default defineComponent({
     const searchModal = ref(false)
     const cartPanelOpen = ref(false)
     const checkoutDialog = ref(false)
+    const receiptVerificationLoading = ref(false)
     const showFooterMap = ref(false)
     const searchQuery = ref('')
     const checkoutPaymentMethod = ref('duitnow_qr')
@@ -1061,13 +1064,46 @@ export default defineComponent({
       checkoutItemsSnapshot.value = []
     }
 
-    const confirmCartPayment = () => {
+    const confirmCartPayment = async () => {
       if (!currentUser.value) return
       if (!cartReceiptsReady.value) {
         notifyMissingCheckoutReceipt()
         return
       }
       if (!validateSelectedCartStock()) return
+
+      receiptVerificationLoading.value = true
+      const verificationBySeller = {}
+      await Promise.all(
+        checkoutGroups.value.map(async (group) => {
+          const sellerReceipt = getGroupReceipt(group)
+          verificationBySeller[group.sellerKey] = await verifyReceiptWithAI({
+            image: sellerReceipt?.receipt || '',
+            fileName: sellerReceipt?.fileName || '',
+            productName: group.items.map((item) => item.name).join(', '),
+            sellerName: group.sellerName,
+            expectedAmount: group.total,
+            paymentReference: getGroupPaymentReference(group).trim(),
+            paymentMethod: checkoutPaymentMethod.value,
+          })
+        }),
+      )
+
+      const rejectedGroup = checkoutGroups.value.find(
+        (group) => verificationBySeller[group.sellerKey]?.receiptVerificationStatus === 'rejected',
+      )
+      if (rejectedGroup) {
+        receiptVerificationLoading.value = false
+        $q.notify({
+          type: 'negative',
+          icon: 'receipt_long',
+          message: `Receipt for ${rejectedGroup.sellerName} was rejected by AI: ${verificationBySeller[rejectedGroup.sellerKey].receiptVerificationReason}`,
+          caption: 'Upload a clear receipt that matches this payment.',
+          position: 'top',
+          timeout: 6000,
+        })
+        return
+      }
 
       createOrders(
         checkoutItems.value.map((item) => ({
@@ -1086,6 +1122,7 @@ export default defineComponent({
               paymentMethod: checkoutPaymentMethod.value,
               paymentReference: paymentReference.trim(),
               paymentStatus: 'Pending Seller Verification',
+              ...verificationBySeller[getSellerReceiptKey(sellerName)],
             }
           })(),
           buyerId: currentUser.value.id,
@@ -1106,10 +1143,14 @@ export default defineComponent({
       groupReceipts.value = {}
       groupPaymentReferences.value = {}
       groupReceiptInputs.value = {}
+      receiptVerificationLoading.value = false
+      const verifiedCount = Object.values(verificationBySeller).filter(
+        (result) => result.receiptVerificationStatus === 'verified',
+      ).length
       $q.notify({
-        color: 'primary',
-        icon: 'receipt_long',
-        message: 'Receipt uploaded. Order is waiting for seller confirmation.',
+        color: verifiedCount === checkoutGroups.value.length ? 'positive' : 'warning',
+        icon: verifiedCount === checkoutGroups.value.length ? 'verified' : 'rate_review',
+        message: `${verifiedCount}/${checkoutGroups.value.length} receipt(s) passed AI pre-screening. Seller confirmation is still required.`,
         position: 'top',
       })
       navigateAfterDialogsClose(
@@ -1144,6 +1185,7 @@ export default defineComponent({
       searchModal,
       cartPanelOpen,
       checkoutDialog,
+      receiptVerificationLoading,
       showFooterMap,
       searchQuery,
       checkoutPaymentMethod,

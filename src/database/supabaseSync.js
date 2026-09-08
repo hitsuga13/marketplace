@@ -22,6 +22,12 @@ const ORDER_LIST_COLUMNS = [
   'payment_reference',
   'payment_status',
   'receipt_file_name',
+  'receipt_verification_status',
+  'receipt_verification_decision',
+  'receipt_verification_reason',
+  'receipt_verification_confidence',
+  'receipt_verification_categories',
+  'receipt_verification_checked_at',
   'status',
   'created_at',
   'updated_at',
@@ -257,6 +263,17 @@ const toSupabaseOrder = (order) => {
     payment_reference: order.paymentReference || '',
     payment_status: order.paymentStatus || 'Pending Seller Verification',
     receipt_file_name: order.receiptFileName || '',
+    receipt_verification_status: order.receiptVerificationStatus || 'unavailable',
+    receipt_verification_decision:
+      order.receiptVerificationDecision || 'manual_review_required',
+    receipt_verification_reason: order.receiptVerificationReason || '',
+    receipt_verification_confidence:
+      order.receiptVerificationConfidence === null ||
+      order.receiptVerificationConfidence === undefined
+        ? null
+        : Number(order.receiptVerificationConfidence),
+    receipt_verification_categories: safeArray(order.receiptVerificationCategories),
+    receipt_verification_checked_at: order.receiptVerificationCheckedAt || null,
     status: order.status || 'In Progress',
     created_at: order.createdAt || new Date().toISOString(),
     updated_at: order.updatedAt || order.reviewedAt || new Date().toISOString(),
@@ -291,6 +308,17 @@ const fromSupabaseOrder = (order) => ({
     ? { receipt: order.receipt || '' }
     : {}),
   receiptFileName: order.receipt_file_name || '',
+  receiptVerificationStatus: order.receipt_verification_status || 'unavailable',
+  receiptVerificationDecision:
+    order.receipt_verification_decision || 'manual_review_required',
+  receiptVerificationReason: order.receipt_verification_reason || '',
+  receiptVerificationConfidence:
+    order.receipt_verification_confidence === null ||
+    order.receipt_verification_confidence === undefined
+      ? null
+      : Number(order.receipt_verification_confidence),
+  receiptVerificationCategories: safeArray(order.receipt_verification_categories),
+  receiptVerificationCheckedAt: order.receipt_verification_checked_at || '',
   status: order.status,
   createdAt: order.created_at,
   updatedAt: order.updated_at,

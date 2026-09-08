@@ -83,6 +83,16 @@
                     {{ order.paymentReference || 'No reference' }}
                   </q-item-label>
                   <q-item-label caption>{{ formatDate(order.createdAt) }}</q-item-label>
+                  <div class="row items-center q-gutter-xs q-mt-xs">
+                    <q-chip
+                      dense
+                      :color="getReceiptVerificationColor(order.receiptVerificationStatus)"
+                      text-color="white"
+                      icon="document_scanner"
+                      :label="getReceiptVerificationLabel(order.receiptVerificationStatus)"
+                    />
+                    <span class="text-caption text-grey-7">{{ order.receiptVerificationReason }}</span>
+                  </div>
                 </q-item-section>
                 <q-item-section side>
                   <q-chip
@@ -584,6 +594,12 @@
             Receipt uploaded as {{ selectedReceiptOrder?.receiptFileName || 'file' }}. Image preview
             is only available for image receipts.
           </q-banner>
+          <q-banner class="role-banner q-mt-md">
+            <div class="text-weight-bold">
+              {{ getReceiptVerificationLabel(selectedReceiptOrder?.receiptVerificationStatus) }}
+            </div>
+            <div>{{ selectedReceiptOrder?.receiptVerificationReason || 'Seller manual review required.' }}</div>
+          </q-banner>
         </q-card-section>
       </q-card>
     </q-dialog>
@@ -623,6 +639,10 @@ import ImageCropDialog from 'src/components/ImageCropDialog.vue'
 import { getUploadSizeError } from 'src/utils/fileValidation'
 import { normalizeStoredImage } from 'src/utils/assets'
 import { getPaymentMethodLabel } from 'src/utils/paymentGateway'
+import {
+  getReceiptVerificationColor,
+  getReceiptVerificationLabel,
+} from 'src/utils/receiptVerification'
 import {
   getModerationStatusColor,
   getModerationStatusLabel,

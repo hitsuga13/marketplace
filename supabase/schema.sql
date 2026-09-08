@@ -69,6 +69,13 @@ create table if not exists public.orders (
   payment_status text not null default 'Pending Seller Verification',
   receipt text default '',
   receipt_file_name text default '',
+  receipt_verification_status text not null default 'unavailable'
+    check (receipt_verification_status in ('verified', 'suspicious', 'rejected', 'unavailable')),
+  receipt_verification_decision text default 'manual_review_required',
+  receipt_verification_reason text default '',
+  receipt_verification_confidence numeric,
+  receipt_verification_categories jsonb not null default '[]'::jsonb,
+  receipt_verification_checked_at timestamptz,
   status text not null default 'In Progress',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()

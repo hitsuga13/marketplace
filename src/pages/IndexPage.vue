@@ -442,7 +442,7 @@
           <input
             ref="receiptInput"
             type="file"
-            accept="image/*,.pdf"
+            accept="image/*"
             class="hidden-file-input"
             @change="handleReceiptUpload"
           />
@@ -463,7 +463,8 @@
             color="primary"
             icon="check_circle"
             label="I have paid"
-            :disable="!buyNowPaymentReady"
+            :disable="!buyNowPaymentReady || receiptVerificationLoading"
+            :loading="receiptVerificationLoading"
             @click="confirmBuyNowPayment"
           />
         </q-card-actions>
@@ -483,6 +484,7 @@ import {
   isValidPaymentReference,
   paymentMethods,
 } from 'src/utils/paymentGateway'
+import { verifyReceiptWithAI } from 'src/utils/receiptVerification'
 import {
   addMessage,
   addToCart,
@@ -509,6 +511,7 @@ const activeSearch = ref('')
 const loginRequiredDialog = ref(false)
 const chatDialog = ref(false)
 const paymentDialog = ref(false)
+const receiptVerificationLoading = ref(false)
 const chatText = ref('')
 const paymentMethod = ref('duitnow_qr')
 const paymentReference = ref('')
@@ -891,10 +894,34 @@ const handleReceiptUpload = (event) => {
   reader.readAsDataURL(file)
 }
 
-const confirmBuyNowPayment = () => {
+const confirmBuyNowPayment = async () => {
   const currentUser = getCurrentUser()
   paymentReferenceTouched.value = true
   if (!buyNowPaymentReady.value || !currentUser) return
+
+  receiptVerificationLoading.value = true
+  const receiptVerification = await verifyReceiptWithAI({
+    image: paymentReceipt.value,
+    fileName: receiptFileName.value,
+    productName: selectedItem.value.name,
+    sellerName: selectedItem.value.vendor || selectedItem.value.seller || 'Campus Vendor',
+    expectedAmount: finalPrice.value,
+    paymentReference: paymentReference.value.trim(),
+    paymentMethod: paymentMethod.value,
+  })
+
+  if (receiptVerification.receiptVerificationStatus === 'rejected') {
+    receiptVerificationLoading.value = false
+    $q.notify({
+      type: 'negative',
+      icon: 'receipt_long',
+      message: `Receipt rejected by AI: ${receiptVerification.receiptVerificationReason}`,
+      caption: 'Upload a clear receipt that matches this payment.',
+      position: 'top',
+      timeout: 6000,
+    })
+    return
+  }
 
   createOrder({
     buyerId: currentUser.id,
@@ -911,6 +938,7 @@ const confirmBuyNowPayment = () => {
     paymentStatus: 'Pending Seller Verification',
     receipt: paymentReceipt.value,
     receiptFileName: receiptFileName.value,
+    ...receiptVerification,
   })
   const updatedProduct = decreaseProductStock(selectedItem.value.id, 1)
   if (updatedProduct) selectedItem.value = { ...selectedItem.value, stock: updatedProduct.stock }
@@ -921,10 +949,14 @@ const confirmBuyNowPayment = () => {
   receiptFileName.value = ''
   paymentReference.value = ''
   paymentReferenceTouched.value = false
+  receiptVerificationLoading.value = false
+  const aiVerified = receiptVerification.receiptVerificationStatus === 'verified'
   $q.notify({
-    color: 'primary',
-    icon: 'receipt_long',
-    message: 'Receipt uploaded. Order is waiting for seller confirmation.',
+    color: aiVerified ? 'positive' : 'warning',
+    icon: aiVerified ? 'verified' : 'rate_review',
+    message: aiVerified
+      ? 'Receipt passed AI pre-screening and is waiting for seller confirmation.'
+      : `Receipt saved for seller review. ${receiptVerification.receiptVerificationReason}`,
     position: 'top',
   })
 }

@@ -554,6 +554,16 @@
                 <q-item-label v-if="getOrderOptionText(order)" caption>
                   {{ getOrderOptionText(order) }}
                 </q-item-label>
+                <div class="row items-center q-gutter-xs q-mt-xs">
+                  <q-chip
+                    dense
+                    :color="getReceiptVerificationColor(order.receiptVerificationStatus)"
+                    text-color="white"
+                    icon="document_scanner"
+                    :label="getReceiptVerificationLabel(order.receiptVerificationStatus)"
+                  />
+                  <span class="text-caption text-grey-7">{{ order.receiptVerificationReason }}</span>
+                </div>
               </q-item-section>
               <q-item-section side>
                 <q-chip dense :color="getStatusColor(order.status)" text-color="white" :label="order.status" />
@@ -617,6 +627,12 @@
           />
           <q-banner v-else class="role-banner">
             Receipt uploaded as {{ selectedReceiptOrder?.receiptFileName || 'file' }}. Image preview is only available for image receipts.
+          </q-banner>
+          <q-banner class="role-banner q-mt-md">
+            <div class="text-weight-bold">
+              {{ getReceiptVerificationLabel(selectedReceiptOrder?.receiptVerificationStatus) }}
+            </div>
+            <div>{{ selectedReceiptOrder?.receiptVerificationReason || 'Manual review required.' }}</div>
           </q-banner>
         </q-card-section>
       </q-card>
@@ -746,6 +762,10 @@ import {
   getModerationStatusLabel,
   moderationStatuses,
 } from 'src/utils/productModeration'
+import {
+  getReceiptVerificationColor,
+  getReceiptVerificationLabel,
+} from 'src/utils/receiptVerification'
 import {
   getOrders,
   getSellerProducts,
